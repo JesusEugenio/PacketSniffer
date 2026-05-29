@@ -418,6 +418,7 @@ namespace UIManager {
                                     ntohs(ip->identification));                                         
                                 ImGui::Text("Time to Live: %d", ip->timeToLive);                        // Número máximo de saltos permitidos antes de descartar el paquete
                                 ImGui::Text("Protocol: %d", ip->protocol);                              // Número que indica qué protocolo viene después (6=TCP, 17=UDP, 1=ICMP, 2=IGMP)
+                                ImGui::TreePop();
                             }
                             
                             // Calcula dónde empieza el protocolo de transporte:
