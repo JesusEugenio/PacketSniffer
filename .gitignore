@@ -1,0 +1,35 @@
+# ==========================================
+# C++ y CMake Archivos de Compilación
+# ==========================================
+/build/
+/out/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.cmake
+*.dir/
+
+# ==========================================
+# Ejecutables y Binarios Crudos
+# ==========================================
+*.exe
+*.dll
+*.lib
+*.so
+*.a
+*.obj
+*.o
+
+# ==========================================
+# Archivos de estado de Dear ImGui
+# ==========================================
+imgui.ini
+
+# ==========================================
+# Archivos temporales del Sistema Operativo y Editores
+# ==========================================
+.vscode/
+.vs/
+*.user
+*.suo
+.DS_Store
