@@ -30,4 +30,6 @@ namespace SnifferCore {
     std::mutex& GetPacketMutex(); // Provee la llave de seguridad del banco de memoria
     const std::vector<PacketData>& GetCapturedPackets(); // Provee acceso de lectura al historial
     void ClearPackets(); // Reinicia la base de datos de memoria
+    std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,const char* textoFiltro,
+        const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, bool ipExactaGlobal=false);
 }
