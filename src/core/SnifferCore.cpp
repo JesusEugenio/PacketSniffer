@@ -5,9 +5,12 @@
 // el cable en tiempo real y guardarlos en un vector
 // ============================================================================
 
-#include "SnifferCore.h" 
+#include "SnifferCore.h"
+#include <unordered_map>
 #include <thread> // Permite ramificar la ejecución en hilos
 #include <atomic> // Variables especializadas a prueba de choques de memoria
+#include <fstream>
+#include <cstring>
 
 namespace SnifferCore {
 
@@ -23,6 +26,11 @@ namespace SnifferCore {
     int linkHeaderSize = 0;                        // Tamaño de la cabecera física (14 bytes en Ethernet, 4 en túneles VPN)
     struct timeval firstPacketTime;                // Guarda la hora exacta del primer paquete (sirve como reloj cero)
     bool isFirstPacket = true;                     // Indica si aún no se ha capturado ningún paquete en esta sesión
+
+    //para las etiquetas
+    std::unordered_map<std::string, Tag> MapIpTag;  //el mapa de etiquetas
+    std::mutex tagMutex;                            //evitar colisiones entre la captura y lo grafico
+    const std::string archive="ip_tags.bin";        //nombre del archivo
 
     // -- PcapCallback --
     // Windows llama automáticamente a esta función cada vez que llega un nuevo paquete a la tarjeta de red
@@ -256,4 +264,62 @@ namespace SnifferCore {
 
         return filtrados;
     }
+
+    void LoadTags() {
+        std::lock_guard<std::mutex> lock(tagMutex);
+        std::ifstream file(archive, std::ios::binary);  //nuestro archivo
+        if (!file) return;
+
+        MapIpTag.clear();   //limpiamos el mapa
+        BinaryTag tag;
+        while (file.read(reinterpret_cast<char*>(&tag), sizeof(BinaryTag))) {
+            MapIpTag[tag.ip]={tag.tagName, tag.colorHex};   //almacenamos clave ip, atributos el nombre y el color
+        }
+    }
+
+    void SaveTags() {
+        std::lock_guard<std::mutex> lock(tagMutex);
+        std::ofstream file(archive, std::ios::binary | std::ios::trunc);     //truncamos para guardar nuevamente
+        if (!file) return;
+
+        for (const auto& [ip, tag] : MapIpTag) {
+            BinaryTag record = {};          //nuevo registro
+            std::strncpy(record.ip, ip.c_str(), sizeof(record.ip) - 1);
+            std::strncpy(record.tagName, tag.name.c_str(), sizeof(record.tagName) - 1);
+            record.colorHex = tag.colorHex;
+            file.write(reinterpret_cast<const char*>(&record), sizeof(BinaryTag));
+        }
+    }
+
+    void AddTag(const std::string& ip, const std::string& name, uint32_t colorHex) {
+        if (ip.empty() || name.empty()) return;     //no guardar vacios
+        {
+            std::lock_guard<std::mutex> lock(tagMutex);
+            MapIpTag[ip] = { name, colorHex };
+        }
+        SaveTags(); //actualizamos el binario
+    }
+
+    void RemoveTag(const std::string& ip) {
+        {
+            std::lock_guard<std::mutex> lock(tagMutex);
+            MapIpTag.erase(ip);
+        }
+        SaveTags();
+    }
+
+    bool getTag(const std::string& ip, Tag& outTag) {
+        std::lock_guard<std::mutex> lock(tagMutex);
+        auto it = MapIpTag.find(ip);        //iterador al mapa
+        if (it != MapIpTag.end()) {
+            outTag = it->second;        //Si hay etiqueta entonces la coloca en la variable que le mandaron
+            return true;
+        }
+        return false;
+    }
+
+    const std::unordered_map<std::string, Tag>& GetAllTags() {
+        return MapIpTag;        //Regresa las etiquetas
+    }
+
 }

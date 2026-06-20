@@ -38,7 +38,7 @@ int main() {
     // Cada vuelta del bucle dibuja un nuevo fotograma en pantalla
     // El bucle termina cuando el usuario cierra la ventana 
     while (glfwWindowShouldClose(window) == false) { 
-        
+        SnifferCore::LoadTags();        //Cargamos las etiquetas existentes
         glfwPollEvents(); // Verifica los clicks y botones apretados para reportar a ImGui
         
         // Señala el fin del fotograma anterior y el comienzo de uno nuevo

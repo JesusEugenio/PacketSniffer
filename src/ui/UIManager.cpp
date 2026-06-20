@@ -28,6 +28,9 @@ namespace UIManager {
     static char textoFiltro[64] = "";       //buffer para el filtro
     static bool ipExactaGlobal=false;
 
+    //etiquetas
+    static bool viewWindowTag = false;
+
 
     // Funcion para traducir los nombres de los Protocolos
     std::string GetFullProtocolName(const std::string& shortName) {
@@ -314,10 +317,12 @@ namespace UIManager {
         if (ImGui::BeginMenuBar()) {
             //Crear pestañas para el menu superior
             if (ImGui::BeginMenu("Captura")) {
+                viewWindowTag=false;
                 if (ImGui::MenuItem("Iniciar Captura")) { /* Prueba */ }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Filtros")) {
+                viewWindowTag=false;
                 //Las opciones de esa pestaña, retorna true si es que se cliquea esa opcion
                 if (ImGui::MenuItem("IP"))
                 {
@@ -352,11 +357,79 @@ namespace UIManager {
                 }
                 ImGui::EndMenu();       //pa cerrar el menú
             }
+            if (ImGui::BeginMenu("Etiquetas")) {
+                if (ImGui::MenuItem("Gestionar Etiquetas")) {
+                    viewWindowTag=true;
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenuBar();
         }
         ImGui::PopStyleColor(5);
     }
 
+    //Para la ventana de gestión de etiquetas
+    void RenderTagManagment() {
+        //Si no es necesario no la dibuja
+        if (!viewWindowTag) return;
+
+        static char inputIP[46] = "";
+        static char inputName[32] = "";
+        static ImVec4 inputColor = ImVec4(0.937f, 0.792f, 0.898f, 1.0f);
+
+        // Creamos una ventana normal e independiente que flotará sobre el sniffer
+        ImGui::Begin("Gestión de Etiquetas", &viewWindowTag, ImGuiWindowFlags_AlwaysAutoResize);
+
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF000000), "Añadir / Modificar Etiqueta:");
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFCCBA81));         // Fondo Blanco
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::ColorConvertU32ToFloat4(0xFFEBEBEB));  // Fondo al pasar mouse
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImGui::ColorConvertU32ToFloat4(0xFFCCBA81));   // Fondo al escribir
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));           // Texto Negro
+        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, ImGui::ColorConvertU32ToFloat4(0xFF000000)); // Cursor/Selección Negro
+
+        //Placeholder en un gris suave para que se note la sugerencia
+        ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::ColorConvertU32ToFloat4(0xFF888888));
+
+        ImGui::InputTextWithHint("Dirección IP", "Ej: 192.168.1.1", inputIP, IM_ARRAYSIZE(inputIP));
+        ImGui::InputTextWithHint("Nombre Etiqueta", "Ej: Servidor", inputName, IM_ARRAYSIZE(inputName));
+
+        ImGui::PopStyleColor(6);
+        ImGui::ColorEdit4("Color Visual", (float*)&inputColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+
+        if (ImGui::Button("Guardar", ImVec2(120, 0))) {
+            ImU32 colorU32 = ImGui::ColorConvertFloat4ToU32(inputColor);
+            SnifferCore::AddTag(inputIP, inputName, colorU32);
+            memset(inputIP, 0, sizeof(inputIP));
+            memset(inputName, 0, sizeof(inputName));
+        }
+
+        ImGui::Separator();
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF000000), "Etiquetas Existentes:");
+
+        if (ImGui::BeginChild("ListaTags", ImVec2(400, 200), true)) {
+            for (const auto& [ip, tag] : SnifferCore::GetAllTags()) {
+                ImGui::PushID(ip.c_str());
+                ImGui::ColorButton("##color", ImGui::ColorConvertU32ToFloat4(tag.colorHex));
+                ImGui::SameLine();
+                ImGui::Text("%s -> %s", ip.c_str(), tag.name.c_str());
+                ImGui::SameLine(ImGui::GetWindowWidth() - 70);
+
+                if (ImGui::Button("Eliminar")) {
+                    SnifferCore::RemoveTag(ip);
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
+        }
+
+        // Botón cerrar manual que también apaga la bandera
+        if (ImGui::Button("Cerrar", ImVec2(120, 0))) {
+            viewWindowTag = false;
+        }
+
+        ImGui::End(); // Cierra la sub-ventana
+    }
 
     // Tabla de captura de paquetes
     void RenderPacketTable(const std::vector<PacketData>& packets, float tableHeight) {
@@ -407,8 +480,46 @@ namespace UIManager {
                         
                         // Rellenamos el resto de columnas con los datos del paquete 
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.time.c_str());  //.c_str() ayuda a ImGui a procesar el texto
-                        ImGui::TableNextColumn(); ImGui::Text("%s", pkt.source.c_str());
-                        ImGui::TableNextColumn(); ImGui::Text("%s", pkt.destination.c_str());
+
+                        //Origen columna
+                        ImGui::TableNextColumn();
+                        SnifferCore::Tag srcTag;
+                        if (SnifferCore::getTag(pkt.source,srcTag)) {
+                            //Dibujado
+                            ImVec2 pos = ImGui::GetCursorScreenPos();
+                            ImVec2 textSize = ImGui::CalcTextSize(pkt.source.c_str());
+
+                            //rectángulo de fondo redondeado detrás del texto de la IP
+                            ImGui::GetWindowDrawList()->AddRectFilled(
+                                ImVec2(pos.x - 3, pos.y - 1),
+                                ImVec2(pos.x + textSize.x + 3, pos.y + textSize.y + 1),
+                                srcTag.colorHex, 4.0f
+                            );
+                            //imprimir el nombre
+                            ImGui::Text("%s (%s)", pkt.source.c_str(), srcTag.name.c_str());
+                        } else {
+                            //si no tiene etiqueta solo la IP
+                            ImGui::Text("%s", pkt.source.c_str()); // IP normal sin etiqueta
+                        }
+
+                        //Destino columna
+                        ImGui::TableNextColumn();
+                        SnifferCore::Tag destTag;
+                        if (SnifferCore::getTag(pkt.destination, destTag)) {
+                            //Dibujado
+                            ImVec2 pos = ImGui::GetCursorScreenPos();
+                            ImVec2 textSize = ImGui::CalcTextSize(pkt.destination.c_str());
+
+                            ImGui::GetWindowDrawList()->AddRectFilled(
+                                ImVec2(pos.x - 3, pos.y - 1),
+                                ImVec2(pos.x + textSize.x + 3, pos.y + textSize.y + 1),
+                                destTag.colorHex, 4.0f
+                            );
+                            ImGui::Text("%s (%s)", pkt.destination.c_str(), destTag.name.c_str());
+                        } else {
+                            ImGui::Text("%s", pkt.destination.c_str());
+                        }
+
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.protocol.c_str());
                         ImGui::TableNextColumn(); ImGui::Text("%d", pkt.length); 
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.info.c_str());
@@ -565,6 +676,7 @@ namespace UIManager {
             ImGui::Text("Interfaz actual: %s", currentInterfaceName.c_str()); 
             ImGui::Spacing();
             RenderToolbarTop();         //Barra de funciones
+            RenderTagManagment();        //ventana de etiquetas
             RenderCaptureToolbar(); // Barra de operaciones
 
             //Si los filtros estan activos
