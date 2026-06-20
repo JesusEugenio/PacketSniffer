@@ -4,7 +4,7 @@
 // la tabla de paquetes, los botones, los colores y los menús desplegables 
 // ============================================================================
 
-#include "UIManager.h" 
+#include "UIManager.h"
 #include "imgui.h"                      // Librería para crear la interfaz gráfica (ventanas, botones, etc)
 #include "imgui_impl_glfw.h"            // Conecta el mouse y teclado con la interfaz gráfica
 #include "imgui_impl_opengl3.h"         // Conecta la interfaz gráfica con la tarjeta de video
@@ -18,6 +18,16 @@ namespace UIManager {
     bool isShowingCaptureScreen = false;     // Está mostrando la tabla de paquetes o el menú inicial?
     std::string currentInterfaceName = "";   // Nombre del dispositivo de red seleccionado
     int selectedPacketIndex = -1;            // Registra qué fila de la tabla le dio clic el usuario (-1 es ninguna)
+
+    //Filtros
+    static int tipoFiltroActivo = 0;        //tipo de filtro activo
+    static char filtroIP[64] = "";
+    static char filtroIPOrigen[64] = "";
+    static char filtroIPDestino[64] = "";
+    static char filtroProtocolo[64] = "";
+    static char textoFiltro[64] = "";       //buffer para el filtro
+    static bool ipExactaGlobal=false;
+
 
     // Funcion para traducir los nombres de los Protocolos
     std::string GetFullProtocolName(const std::string& shortName) {
@@ -207,7 +217,7 @@ namespace UIManager {
         
         // Crea la ventana del programa
         GLFWwindow* window = glfwCreateWindow(1280, 800, "PacketSniffer", NULL, NULL);
-        glfwMakeContextCurrent(window); // Le dice a la tarjeta de video que dibuje todo en esta ventana
+        glfwMakeContextCurrent(window); // Le dice a la tarjeta de video que dibuje to_do esta ventana
         glfwSwapInterval(1);            // Enciende la Sincronización Vertical (V-Sync) para empatar los frames con los Hz del monitor
         
         IMGUI_CHECKVERSION();       // Macro de seguridad que verifica que la versión de ImGui instalada coincide con la que se usó al compilar
@@ -279,6 +289,7 @@ namespace UIManager {
         } 
         else { // Si la captura ya terminó o no ha iniciado...
             if (ImGui::Button("Volver a Interfaces", ImVec2(200, 30))) {
+                tipoFiltroActivo=0;
                 SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
                 isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
                 selectedPacketIndex = -1;           // Limpia la selección para evitar leer memoria de un paquete que ya no existe
@@ -287,6 +298,65 @@ namespace UIManager {
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF3333CC), " Captura finalizada. Haz clic en un paquete para inspeccionarlo"); 
         }
     }
+
+    //Menu superior (algunas funciones son redundantes)
+    void RenderToolbarTop() {
+        //Fondo de lo desplegable
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(0xFFCAC696));
+        //Color del texto
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));
+        //Color de los botones al pasar el mouse por encima
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(0xFFCCBA81));
+        //pa seleccion en barra
+        ImGui::PushStyleColor(ImGuiCol_Header, ImGui::ColorConvertU32ToFloat4(0xFFCCBA81));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::ColorConvertU32ToFloat4(0xFFCCBA81));
+
+        if (ImGui::BeginMenuBar()) {
+            //Crear pestañas para el menu superior
+            if (ImGui::BeginMenu("Captura")) {
+                if (ImGui::MenuItem("Iniciar Captura")) { /* Prueba */ }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Filtros")) {
+                //Las opciones de esa pestaña, retorna true si es que se cliquea esa opcion
+                if (ImGui::MenuItem("IP"))
+                {
+                    ipExactaGlobal = false;
+                    tipoFiltroActivo = 1;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
+                if (ImGui::MenuItem("IP Origen")) {
+                    tipoFiltroActivo = 2;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
+                if (ImGui::MenuItem("IP Destino")) {
+                    tipoFiltroActivo = 3;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
+                ImGui::Separator();                     //estetica
+                if (ImGui::MenuItem("Protocolo")) {
+                    tipoFiltroActivo = 4;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
+                if (ImGui::MenuItem("Combinado")) {
+                    ipExactaGlobal = false;
+                    tipoFiltroActivo = 5;
+                    memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
+                    memset(filtroIP, 0, sizeof(filtroIP));
+                    memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
+                    memset(filtroIPDestino, 0, sizeof(filtroIPDestino));
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Eliminar Filtros")) {
+                    tipoFiltroActivo = 0;
+                }
+                ImGui::EndMenu();       //pa cerrar el menú
+            }
+            ImGui::EndMenuBar();
+        }
+        ImGui::PopStyleColor(5);
+    }
+
 
     // Tabla de captura de paquetes
     void RenderPacketTable(const std::vector<PacketData>& packets, float tableHeight) {
@@ -477,11 +547,15 @@ namespace UIManager {
     // FUNCION DE RENDERIZADO PRINCIPAL
     // ============================================================================
 
-    void RenderMainUI() {     
+    void RenderMainUI() {
         ImGui::SetNextWindowPos(ImVec2(0, 0));                        // Establecemos posicion de la ventana
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);         // Establecemos el tamaño
-        ImGui::Begin("MainWindow", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove); // Creamos la ventana
-        
+        //Color de fondo de la barra
+        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImGui::ColorConvertU32ToFloat4(0xFFCAC696));
+
+
+        ImGui::Begin("MainWindow", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove|ImGuiWindowFlags_MenuBar); // Creamos la ventana
+
         // Si el usuario todavía no eligió una tarjeta de red, muestra el menú de selección
         if (isShowingCaptureScreen == false) { 
             RenderInterfaceSelectionScreen(); 
@@ -490,8 +564,112 @@ namespace UIManager {
             // Si ya está capturando, muestra la interfaz de captura
             ImGui::Text("Interfaz actual: %s", currentInterfaceName.c_str()); 
             ImGui::Spacing();
-            
+            RenderToolbarTop();         //Barra de funciones
             RenderCaptureToolbar(); // Barra de operaciones
+
+            //Si los filtros estan activos
+            if (tipoFiltroActivo > 0) {
+
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF65784D), "Filtro Activo:");
+
+                //Estilo de las areas de texto
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFF77723E));
+                ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::ColorConvertU32ToFloat4(0xFF756E26));
+                ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFFFFEBF7));
+                ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::ColorConvertU32ToFloat4(0xFFDBD7B2));
+                ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(0xFF303030));
+                ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImGui::ColorConvertU32ToFloat4(0xFF00FF00));
+                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+
+                //Para ahorrar la configuración de cada caja de texto
+                auto RenderInputFiltro = [&](const char* id, const char* placeholder, char* buffer, size_t size) {
+                    ImGui::SetNextItemWidth(250.0f); //límite de ancho
+                    ImGui::InputTextWithHint(id, placeholder, buffer, size);
+                };
+
+                if (tipoFiltroActivo == 5) {
+                    //posiblemente 4 filtros
+
+                    ImGui::SameLine();
+
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_ip", "Buscar IP (Parcial)...", filtroIP, sizeof(filtroIP));
+                    ImGui::SameLine();
+                    //Por como funcionan los colores, estos se agregan solo en el momento de la checkBox, para así no afectar a los de las cajas de texto
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));
+                    ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);
+                    ImGui::PopStyleColor(2);
+                    ImGui::EndGroup();
+
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_origen", "IP Origen Exacta...", filtroIPOrigen, sizeof(filtroIPOrigen));
+                    ImGui::Dummy(ImVec2(0, 15)); // Espaciador para alinear horizontalmente
+                    ImGui::EndGroup();
+
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_destino", "IP Destino Exacta...", filtroIPDestino, sizeof(filtroIPDestino));
+                    ImGui::Dummy(ImVec2(0, 15));
+                    ImGui::EndGroup();
+
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_protocolo", "Protocolo...", filtroProtocolo, sizeof(filtroProtocolo));
+                    ImGui::Dummy(ImVec2(0, 15));
+                    ImGui::EndGroup();
+
+
+                }
+                else {
+                    std::string placeholder = "Buscar ";        //placehoilder, las letras que se ven cuando no hay texto en la caja
+                    if (tipoFiltroActivo == 1) {
+                        placeholder += "IP ...";
+                        ImGui::SameLine();
+                        RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                        ImGui::SameLine();
+                        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));
+                        ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);       //el checkbox puedes solo verdadero o falso
+                        ImGui::PopStyleColor(2);
+                    }
+                    else {
+                        if (tipoFiltroActivo == 2) placeholder += "IP Origen...";
+                        if (tipoFiltroActivo == 3) placeholder += "IP Destino...";
+                        if (tipoFiltroActivo == 4) placeholder += "Protocolo...";
+
+                        ImGui::SameLine();
+                        RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                    }
+                }
+
+                ImGui::PopStyleColor(7);
+                ImGui::PopStyleVar(1);
+
+                //boton
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(0xFF0000FC));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(0xFF2020BD));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(0xFF0000A3));
+
+                if (ImGui::Button("X")) {
+                    tipoFiltroActivo = 0;
+                    //limpiamos absolutamente todos los buffers al cerrar
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                    memset(filtroIP, 0, sizeof(filtroIP));
+                    memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
+                    memset(filtroIPDestino, 0, sizeof(filtroIPDestino));
+                    memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
+                    ipExactaGlobal = false;
+                }
+                ImGui::PopStyleColor(3);
+                ImGui::Spacing();
+            }
 
             // SECCION CRITICA
             // El programa usa dos hilos simultáneos:
@@ -500,20 +678,26 @@ namespace UIManager {
             // El mutex actua asi: si el Hilo 2 está escribiendo datos, el Hilo 1 espera, evitando crashes
             std::lock_guard<std::mutex> lock(SnifferCore::GetPacketMutex());
             const auto& packets = SnifferCore::GetCapturedPackets(); // Obtiene la lista completa de paquetes capturados
-            
+
+            //Se hace la función de filtrado y se almacena en una copia, si se aplican filtros solo contendra esos elementos, si no contendra to_do
+            std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal);
+
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF)); // Fuerza fondo blanco en la tabla crudo
-            
+
             /* Si hay un paquete seleccionado, la tabla ocupa solo la mitad de la pantalla
             para dejar espacio al panel de detalles inferior */
             float tableHeight = 0.0f;
-            if (selectedPacketIndex >= 0) tableHeight = ImGui::GetContentRegionAvail().y * 0.5f; 
-            
-            RenderPacketTable(packets, tableHeight);    // Dibuja la tabla de paquetes         
-            RenderPacketDetails(packets);               // Dibuja el panel de detalles (si hay algo seleccionado)
+            if (selectedPacketIndex >= 0) tableHeight = ImGui::GetContentRegionAvail().y * 0.5f;
+
+            //Para dibujar siempre sera la copia
+
+            RenderPacketTable(paquetesFiltrados, tableHeight);    // Dibuja la tabla de paquetes
+            RenderPacketDetails(paquetesFiltrados);               // Dibuja el panel de detalles (si hay algo seleccionado)
 
             ImGui::PopStyleColor(); // Restaura el color de fondo original
         }
-        
-        ImGui::End(); // Finaliza la ventana y le indica a OpenGL que dibuje todo en pantalla
+
+        ImGui::End(); // Finaliza la ventana y le indica a OpenGL que dibuje to_do en pantalla
+        ImGui::PopStyleColor();
     }
 }

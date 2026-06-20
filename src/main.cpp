@@ -42,11 +42,12 @@ int main() {
         glfwPollEvents(); // Verifica los clicks y botones apretados para reportar a ImGui
         
         // Señala el fin del fotograma anterior y el comienzo de uno nuevo
-        ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
 
         // Renderizamos la Interfaz Grafica
+
         UIManager::RenderMainUI();
         ImGui::Render();
         
