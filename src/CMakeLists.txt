@@ -33,6 +33,7 @@ target_link_libraries(PacketSniffer PRIVATE
     Packet 
     glfw3 
     opengl32
+    iphlpapi
 )
 
 # Le decimos a CMake que copie la carpeta de fuentes justo al lado del .exe
