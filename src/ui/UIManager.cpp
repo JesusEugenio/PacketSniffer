@@ -26,6 +26,10 @@ namespace UIManager {
     std::string currentInterfaceName = "";   // Nombre del dispositivo de red seleccionado
     int selectedPacketIndex = -1;            // Registra qué fila de la tabla le dio clic el usuario (-1 es ninguna)
 
+    // Fuente tipografica
+    ImFont* fontBold = nullptr;
+    ImFont* fontMedium = nullptr;
+
     //Filtros
     static int tipoFiltroActivo = 0;        //tipo de filtro activo
     static char filtroIP[64] = "";
@@ -237,8 +241,10 @@ namespace UIManager {
         IMGUI_CHECKVERSION();       // Macro de seguridad que verifica que la versión de ImGui instalada coincide con la que se usó al compilar
         ImGui::CreateContext();     // Reserva la memoria que ImGui necesita para funcionar
         
-        // Cargamos la fuente del programa
+        // Cargamos la fuente del programa (Regular, Medium & Bold)
         ImFont* font = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/segoeui.ttf", 18.0f); 
+        fontMedium = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/seguisb.ttf", 18.0f);
+        fontBold = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/segoeuib.ttf", 18.0f);
         if (font == nullptr) { ImGui::GetIO().FontGlobalScale = 1.5f; } // Usa la fuente predeterminada
         
         ImGui_ImplGlfw_InitForOpenGL(window, true);  // Conecta los eventos del mouse/teclado de GLFW hacia ImGui
@@ -262,6 +268,17 @@ namespace UIManager {
 
     // Pantalla Inicial - Lista de Interfaces de Red 
     void RenderInterfaceSelectionScreen() {
+        ImGui::Spacing();
+
+        // Encabezado de bienvenida
+        if (fontBold) ImGui::PushFont(fontBold); // Activa la fuente bold
+        ImGui::SetWindowFontScale(2.5f); // Hace la fuente al doble de tamaño
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::AZULMARINOOSCURO), "Bienvenido a Packet Sniffer");
+        ImGui::SetWindowFontScale(1.0f); // Restaura el tamaño normal para lo que sigue
+        if (fontBold) ImGui::PopFont();
+
+        ImGui::Spacing();
+        ImGui::Spacing();
 
         ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::AZULMARINOOSCURO), "Selecciona una interfaz haciendo doble clic para comenzar a capturar trafico");
         ImGui::Separator();  // Dibuja una línea horizontal separadora
@@ -271,7 +288,13 @@ namespace UIManager {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(Colores::MORADOGRISACEO));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Colores::MORADOGRISACEO));
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));   // Color del texto sobre el boton
-        ImGui::Button("Tarjetas de red locales:", ImVec2(-FLT_MIN, 0));                     // Boton que ocupa to_do el ancho disponible
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.01f, 0.42f)); // Alineado a la izquierda
+        ImGui::SetWindowFontScale(1.3f);
+        ImGui::Button("Tarjetas de red locales", ImVec2(-FLT_MIN, 35));  // Boton que ocupa todo el ancho disponible
+
+        // Limpiamos las modificaciones para no afectar a los siguientes elementos
+        ImGui::SetWindowFontScale(1.0f); 
+        ImGui::PopStyleVar(); 
         ImGui::PopStyleColor(3); // Quita las 3 reglas de color que se aplicaron arriba (limpieza)
 
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL));
@@ -925,6 +948,7 @@ namespace UIManager {
         ImGui::End(); // Finaliza la ventana y le indica a OpenGL que dibuje to_do en pantalla
         ImGui::PopStyleColor(2);
     }
+
     void TextCenter(const char* texto, ImU32 colorU32) {
         float anchoVentana = ImGui::GetWindowSize().x;
         float anchoTexto = ImGui::CalcTextSize(texto).x;
@@ -1012,6 +1036,7 @@ namespace UIManager {
 
         return textureID;
     }
+
     void LoadSplashResources() {
         for (int i = 1; i <= TOTAL_FRAMES; i++) {
             // Construye la ruta dinámicamente: assets/splash/frame_0.png, frame_1.png...
