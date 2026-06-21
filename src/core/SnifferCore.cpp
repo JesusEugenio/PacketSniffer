@@ -6,6 +6,8 @@
 // ============================================================================
 
 #include "SnifferCore.h"
+#include <winsock2.h>
+#include <iphlpapi.h>
 #include <unordered_map>
 #include <thread> // Permite ramificar la ejecución en hilos
 #include <atomic> // Variables especializadas a prueba de choques de memoria
@@ -92,6 +94,38 @@ namespace SnifferCore {
         isCapturingFlag = false; // Notifica a la interfaz gráfica que la captura terminó
     }
 
+    // -- GetWindowsFriendlyNames --
+    // Funcion que pregunta a Windows por los nombres de cada tarjeta de red
+    // El FriendlyName ayuda a que el usuario reconozca la red donde va a capturar el trafico
+    std::unordered_map<std::string, std::string> GetWindowsFriendlyNames() {
+        std::unordered_map<std::string, std::string> friendlyNames;
+        ULONG outBufLen = 15000; // Reservamos memoria para la respuesta de Windows
+        PIP_ADAPTER_ADDRESSES pAddresses = (IP_ADAPTER_ADDRESSES*)malloc(outBufLen);
+        
+        // Ejecutamos la consulta a la API de Windows
+        if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, pAddresses, &outBufLen) == NO_ERROR) {
+            PIP_ADAPTER_ADDRESSES pCurrAddresses = pAddresses;
+            
+            while (pCurrAddresses) {
+                // El AdapterName es el UUID (ej. {1234ABCD-5678...})
+                std::string adapterName = pCurrAddresses->AdapterName; 
+                
+                // Windows devuelve el FriendlyName en un formato de texto ancho (PWCHAR). Lo convertimos a un string normal de C++
+                int size = WideCharToMultiByte(CP_UTF8, 0, pCurrAddresses->FriendlyName, -1, NULL, 0, NULL, NULL);
+                std::string friendlyName(size, 0);
+                WideCharToMultiByte(CP_UTF8, 0, pCurrAddresses->FriendlyName, -1, &friendlyName[0], size, NULL, NULL);
+                friendlyName.resize(size - 1); // Quitamos el carácter nulo final
+                
+                // Guardamos en el diccionario -> ej. Clave=UUID, Valor="Wi-Fi"
+                friendlyNames[adapterName] = friendlyName;
+                
+                pCurrAddresses = pCurrAddresses->Next;
+            }
+        }
+        free(pAddresses); // Liberacion de memoria
+        return friendlyNames;
+    }
+
     // -- LoadLocalInterfaces --
     // Detecta todas las tarjetas de red instaladas en la computadora y las guarda
     // en la lista localInterfaces para mostrarlas en la pantalla de selección
@@ -99,19 +133,39 @@ namespace SnifferCore {
         pcap_if_t* allDevs;                 // Puntero a la lista de dispositivos que devuelve Npcap
         char errBuf[PCAP_ERRBUF_SIZE];      // Espacio para mensajes de error
         
+        // Obtenemos los FriendlyNames de las tarjetas de red 
+        auto windowsFriendlyNames = GetWindowsFriendlyNames();
+
         if (pcap_findalldevs(&allDevs, errBuf) != -1) { // Si Npcap logra leer los dispositivos del sistema...
             for (pcap_if_t* d = allDevs; d != NULL; d = d->next) { // Recorre la lista uno por uno
 
                 NetworkInterface netIface;  // Crea un objeto para guardar los datos de esta tarjeta
                 netIface.name = d->name;    // Guarda el nombre
+
+                // El nombre de Npcap luce asi -> \Device\NPF_{UUID}, extraemos solo el {UUID}
+                std::string pcapName = d->name;
+                std::string uuid = "";
+                size_t pos = pcapName.find('{'); // Buscamos donde empieza la llave
+                if (pos != std::string::npos) {
+                    uuid = pcapName.substr(pos); // Recortamos la cadena desde la llave hasta el final
+                }
                 
-                if (d->description != nullptr) { // Evalúa la existencia de descripciones
-                    netIface.description = d->description;
-                } else {
+                // Revisamos si el UUID de Npcap coincide con la lista de nombres
+                if (!uuid.empty() && windowsFriendlyNames.count(uuid)) {
+                    netIface.description = windowsFriendlyNames[uuid]; // Coincide, le asignamos el nombre
+                } 
+                else if (d->description != nullptr) { 
+                    netIface.description = d->description; // Plan B: Usamos el nombre del driver 
+                } 
+                else {
                     netIface.description = "Sin Descripcion";
                 }
 
-                localInterfaces.push_back(netIface);    // Agrega la tarjeta a la lista global
+                // Ignoramos los adaptadores virtuales ocultos de Windows
+                // No tienen trafico activo por que se utilizan para casos muy muy especificos 
+                if (netIface.description.find("WAN Miniport") == std::string::npos) {
+                    localInterfaces.push_back(netIface); // Si no es WAN, lo agregamos a la lista
+                }
             }
             pcap_freealldevs(allDevs); // Libera la memoria que Npcap reservó para la lista
         }

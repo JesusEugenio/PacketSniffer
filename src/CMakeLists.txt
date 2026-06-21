@@ -27,14 +27,15 @@ target_link_directories(PacketSniffer PRIVATE
 )
 
 # Vincular las librerías necesarias
-target_link_libraries(PacketSniffer PRIVATE
-        imgui
-        ws2_32
-        wpcap
-        Packet
-        glfw3
-        opengl32
-        winmm
+target_link_libraries(PacketSniffer PRIVATE 
+    imgui 
+    ws2_32 
+    wpcap 
+    Packet 
+    glfw3 
+    opengl32
+    iphlpapi
+    winmm
 )
 
 # Le decimos a CMake que copie la carpeta de fuentes justo al lado del .exe
