@@ -13,4 +13,7 @@ namespace UIManager {
     GLFWwindow* InitializeWindow();             // Arranca el motor gráfico OpenGL
     void RenderMainUI();                        // Función principal de renderizado
     void ShutdownWindow(GLFWwindow* window);    // Apaga y limpia la memoria de video
+    void SetupColors();
+    void RenderSplashScreen(float currentTimer, float totalDuration);
+    void LoadSplashResources();
 }
