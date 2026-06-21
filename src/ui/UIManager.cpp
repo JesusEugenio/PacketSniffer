@@ -235,6 +235,18 @@ namespace UIManager {
 
         // Crea la ventana del programa
         GLFWwindow* window = glfwCreateWindow(600, 500, "PacketSniffer", NULL, NULL);
+
+        GLFWimage icon[1];
+        // stbi_load lee el archivo físico. El '4' al final obliga a que tenga el canal Alfa (transparencia RGBA)
+        icon[0].pixels = stbi_load("assets/imagenes/icon.png", &icon[0].width, &icon[0].height, 0, 4);
+        if(icon[0].pixels != nullptr){
+            glfwSetWindowIcon(window, 1, icon); // Le inyecta la imagen a la ventana
+            stbi_image_free(icon[0].pixels); //Libera la RAM temporal que usamos para leer el archivo
+        }
+        else{
+            printf("No pudo cargarse elicono");
+        }
+
         glfwMakeContextCurrent(window); // Le dice a la tarjeta de video que dibuje to_do esta ventana
         glfwSwapInterval(1);            // Enciende la Sincronización Vertical (V-Sync) para empatar los frames con los Hz del monitor
         
