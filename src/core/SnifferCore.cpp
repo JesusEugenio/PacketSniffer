@@ -184,12 +184,28 @@ namespace SnifferCore {
         capturedPackets.clear(); // Elimina todos los paquetes de la lista
     }
 
+    //Para checar si la IP coincide con la etiqueta
+    bool CoincideIpOEtiqueta(const std::string& ipPaquete, const std::string& busqueda, bool usarEtiqueta, bool exacta) {
+        if (busqueda.empty()) return true;
+
+        if (usarEtiqueta) { //Si es busqueda por etiqueta
+            Tag infoTag;
+            if (getTag(ipPaquete, infoTag)) { //si existe la etiqueta
+                return exacta ? (infoTag.name == busqueda) : (infoTag.name.find(busqueda) != std::string::npos);
+            }
+            return false; // Si no hay etiqueta, no pasa el filtro
+        }
+
+        //Si no se debe buscar por etiqueta entonces por IP
+        return exacta ? (ipPaquete == busqueda) : (ipPaquete.find(busqueda) != std::string::npos);
+    }
+
     // -- FiltrarPaquetes --
     //Filtra el historial original basándose en el tipo de filtro activo y los buffers.
     //Devuelve un nuevo vector con las coincidencias encontradas.
     std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,
         const char* textoFiltro,const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,
-        const char* filtroProtocolo, bool exactaGlobal){
+        const char* filtroProtocolo, bool exactaGlobal,bool etiquetaIP, bool etiquetaOrig, bool etiquetaDest){
         std::vector<PacketData> filtrados;
         filtrados.reserve(originales.size());
 
@@ -198,36 +214,25 @@ namespace SnifferCore {
 
             switch (tipoFiltro) {
                 case 1: { //IP (Cualquiera: Origen o Destino), el checkbox nos indica si quiere la exacta o solo que la contenga(esto afecta a la terminación de la IP)
-                    std::string ipBuscada(textoFiltro);     //Convierte a String y renombra
-                    if (ipBuscada.empty()) pasaFiltro = true;
-                    else {
-                        //Pasar o no seguyn si necesita de la exacta o no
-                        bool origOk = exactaGlobal ? (pkt.source == ipBuscada) : (pkt.source.find(ipBuscada) != std::string::npos);
-                        // !=std::string::npos  tal cual, regresa verdadero mientras el resultado sea distinto de un error especial (no position/no lo encontro)
-                        bool destOk = exactaGlobal ? (pkt.destination == ipBuscada) : (pkt.destination.find(ipBuscada) != std::string::npos);
-                        if (origOk || destOk) pasaFiltro = true;
-                    }
+                    std::string bIP(textoFiltro);
+                    //Si el filtro está vacío, pasa; si no, verifica si coincide por IP o por Etiqueta
+                    pasaFiltro = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, exactaGlobal) ||
+                                 CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, exactaGlobal);
                     break;
                 }
                 case 2: { //IP Origen siempre exacta
-                    std::string ipBuscada(textoFiltro);
-                    if (ipBuscada.empty() || pkt.source == ipBuscada) {
-                        pasaFiltro = true;
-                    }
+                    std::string bOrig(textoFiltro);
+                    pasaFiltro = CoincideIpOEtiqueta(pkt.source, bOrig, etiquetaOrig, true); // Origen es exacta
                     break;
                 }
                 case 3: { //IP Destino siempre exacta
-                    std::string ipBuscada(textoFiltro);
-                    if (ipBuscada.empty() || pkt.destination == ipBuscada) {
-                        pasaFiltro = true;
-                    }
+                    std::string bDest(textoFiltro);
+                    pasaFiltro = CoincideIpOEtiqueta(pkt.destination, bDest, etiquetaDest, true); // Destino es exacta
                     break;
                 }
                 case 4: { // Protocolo
-                    std::string protoBuscado(textoFiltro);
-                    if (protoBuscado.empty() || pkt.protocol.find(protoBuscado) != std::string::npos) {
-                        pasaFiltro = true;
-                    }
+                    std::string bProt(textoFiltro);
+                    pasaFiltro = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
                     break;
                 }
                 case 5: { //Combinacion
@@ -236,20 +241,17 @@ namespace SnifferCore {
                     //Si no manda nada entonces esa digamos que ya es verdadero para no evaluarla
                     //Si tiene texto, entonces busca la coincidencia con .find (o de forma exacta segun el checkbox)
                     //IP global, parcial o exacta según el checkbox
-                    bool convIP = bIP.empty() || (exactaGlobal ? (pkt.source == bIP || pkt.destination == bIP)
-                                                               : (pkt.source.find(bIP) != std::string::npos || pkt.destination.find(bIP) != std::string::npos));
+                    bool convIP   = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, exactaGlobal) ||
+                                CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, exactaGlobal);
 
                     //origen y destino exactas por default
-                    bool convOrig = bOrig.empty() || (pkt.source == bOrig);
-                    bool convDest = bDest.empty() || (pkt.destination == bDest);
+                    bool convOrig = CoincideIpOEtiqueta(pkt.source, bOrig, etiquetaOrig, true);
+                    bool convDest = CoincideIpOEtiqueta(pkt.destination, bDest, etiquetaDest, true);
 
                     //protocolo siempre busqueda parcial
                     bool convProt = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
-
                     //Solo paquetes con todas las coincidencias se muestran
-                    if (convIP && convOrig && convDest && convProt) {
-                        pasaFiltro = true;
-                    }
+                    pasaFiltro = (convIP && convOrig && convDest && convProt);
                     break;
                 }
                 default:
