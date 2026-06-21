@@ -43,7 +43,8 @@ namespace SnifferCore {
     const std::vector<PacketData>& GetCapturedPackets(); // Provee acceso de lectura al historial
     void ClearPackets(); // Reinicia la base de datos de memoria
     std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,const char* textoFiltro,
-        const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, bool ipExactaGlobal=false);
+        const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, bool ipExactaGlobal=false,
+        bool etiquetaIP=false, bool etiquetaOrig=false, bool etiquetaDest=false);
     void LoadTags();        //Cargar etiquetas, osea traerlas del archivo binario
     void SaveTags();        //Guardar etiquetas, actualizar el binario
     void AddTag(const std::string& ip, const std::string& name, uint32_t colorHex);     //Agregar etiqueta

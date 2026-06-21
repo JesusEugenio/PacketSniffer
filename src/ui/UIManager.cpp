@@ -4,6 +4,10 @@
 // la tabla de paquetes, los botones, los colores y los menús desplegables 
 // ============================================================================
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <winsock2.h>
+#include "stb_image.h"
+#include <GL/gl.h> // O tus headers de OpenGL/GLFW (ej. <GLFW/glfw3.h>)
 #include "UIManager.h"
 #include "imgui.h"                      // Librería para crear la interfaz gráfica (ventanas, botones, etc)
 #include "imgui_impl_glfw.h"            // Conecta el mouse y teclado con la interfaz gráfica
@@ -12,7 +16,9 @@
 #include "../parser/PacketParser.h"     // Herramientas para leer y analizar paquetes de red
 #include "Colores.h"                    //Gama de colores
 #include <string>
-#include <winsock2.h> 
+
+std::vector<GLuint> splashFrames;
+const int TOTAL_FRAMES = 2;
 
 namespace UIManager {
     // Variables Globales de Estado
@@ -28,6 +34,9 @@ namespace UIManager {
     static char filtroProtocolo[64] = "";
     static char textoFiltro[64] = "";       //buffer para el filtro
     static bool ipExactaGlobal=false;
+    static bool etiquetaSearch=false;
+    static bool etiquetaSearchSrc=false;
+    static bool etiquetaSearchDest=false;
 
     //etiquetas
     static bool viewWindowTag = false;
@@ -180,37 +189,37 @@ namespace UIManager {
     
     // Configura todas las propiedades de color para la interfaz gráfica
     void SetupColors() {
-        ImGuiStyle& style = ImGui::GetStyle(); // Obtiene el acceso directo a la memoria real de estilo
-        
-        // Redondeamos las esquinas de los botones y ventanas
-        style.FrameRounding = 4.0f; //
-        style.WindowRounding = 6.0f; //
-        
-        // Color Primario (Gris Azulado): #8695A5 -> Invertido a A59586 + Alpha FF (Totalmente Opaco)
-        /* Se invierte ya que el procesador utiliza una arquitectura Little Endian para el almacenamiento en memoria
-        por lo que debemos invertir el color para que lo guarde en el orden correcto */
-        ImVec4 primaryColor = ImGui::ColorConvertU32ToFloat4(0xFFA59586); 
-        
-        style.Colors[ImGuiCol_Header] = primaryColor;   // Color de fila seleccionada en listas
-        style.Colors[ImGuiCol_Button] = primaryColor;   // Color de fondo de botones
-        style.Colors[ImGuiCol_TitleBg] = primaryColor;  // Color del título de las ventanas
-        
-        // Color Hover (Color Primario mas claro): #909FAF -> FFAF9F90
-        ImVec4 hoverColor = ImGui::ColorConvertU32ToFloat4(0xFFAF9F90);
-        style.Colors[ImGuiCol_HeaderHovered] = hoverColor; 
-        style.Colors[ImGuiCol_ButtonHovered] = hoverColor;
-        
-        // Color Active (Color que toma al hacer clic): #7C8B9B -> FF9B8B7C
-        ImVec4 activeColor = ImGui::ColorConvertU32ToFloat4(0xFF9B8B7C);
-        style.Colors[ImGuiCol_HeaderActive] = activeColor; 
-        style.Colors[ImGuiCol_ButtonActive] = activeColor; 
-        
-        // Colores de Fondo, Paneles y Texto 
-        style.Colors[ImGuiCol_WindowBg] = ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF);    // Fondo de la ventana -> Blanco Puro (#FFFFFF) 
-        style.Colors[ImGuiCol_FrameBg] = ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF);     // Fondo de campos y controles -> Blanco Puro (#FFFFFF)
-        style.Colors[ImGuiCol_ChildBg] = ImGui::ColorConvertU32ToFloat4(0xFFF5F5F5);     // Fondo de sub-paneles -> Gris Claro (#F5F5F5)
-        style.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(0xFF1A1A1A);        // Color de Texto -> Gris Oscuro (#1A1A1A)
-        style.Colors[ImGuiCol_TableHeaderBg] = ImGui::ColorConvertU32ToFloat4(0xFFD9D9D9); // Fondo del encabezado de columnas -> Gris Plomo (#D9D9D9)
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        //redondeado de bordes, estética
+        style.FrameRounding = 4.0f;
+        style.WindowRounding = 6.0f;
+        style.ChildRounding = 4.0f;
+
+        ImVec4 colorFondoBase = ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL);
+        ImVec4 colorTextoBase = ImGui::ColorConvertU32ToFloat4(Colores::NEGRO);
+
+        style.Colors[ImGuiCol_WindowBg]         = colorFondoBase;
+        style.Colors[ImGuiCol_Text]             = colorTextoBase;
+
+        //configuración global de botones
+        style.Colors[ImGuiCol_Button]           = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERAL);
+        style.Colors[ImGuiCol_ButtonHovered]    = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALHOVER);
+        style.Colors[ImGuiCol_ButtonActive]     = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALPRESS);
+
+        //cabeceras y elementos seleccionables por defecto
+        style.Colors[ImGuiCol_Header]           = ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO);
+        style.Colors[ImGuiCol_HeaderHovered]    = ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO);
+        style.Colors[ImGuiCol_HeaderActive]     = ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO);
+
+        //Input
+        style.Colors[ImGuiCol_FrameBg]        = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+        style.Colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+        style.Colors[ImGuiCol_FrameBgActive]  = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+
+        style.Colors[ImGuiCol_TextSelectedBg] = ImGui::ColorConvertU32ToFloat4(Colores::NEGRO);
+
+        style.Colors[ImGuiCol_TextDisabled]   = ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO);
     }
 
     // ============================================================================
@@ -219,9 +228,9 @@ namespace UIManager {
 
     GLFWwindow* InitializeWindow() {
         if (!glfwInit()) return nullptr; // Aborta y retorna null si el SO rechaza la creación gráfica
-        
+
         // Crea la ventana del programa
-        GLFWwindow* window = glfwCreateWindow(1280, 800, "PacketSniffer", NULL, NULL);
+        GLFWwindow* window = glfwCreateWindow(600, 500, "PacketSniffer", NULL, NULL);
         glfwMakeContextCurrent(window); // Le dice a la tarjeta de video que dibuje to_do esta ventana
         glfwSwapInterval(1);            // Enciende la Sincronización Vertical (V-Sync) para empatar los frames con los Hz del monitor
         
@@ -266,8 +275,6 @@ namespace UIManager {
         ImGui::PopStyleColor(3); // Quita las 3 reglas de color que se aplicaron arriba (limpieza)
 
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL));
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO));
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO));
         // Abre una lista desplazable que ocupa to_do el espacio restante de la ventana
         if (ImGui::BeginListBox("##NetworkCards", ImVec2(-FLT_MIN, -FLT_MIN))) { 
             // Pide el vector de tarjetas al Core y lo itera uno por uno
@@ -284,14 +291,11 @@ namespace UIManager {
             }
             ImGui::EndListBox(); // Cierra la lista
         }
-        ImGui::PopStyleColor(3);
+        ImGui::PopStyleColor();
     }
 
     // Barra Superior ubicada antes de la tabla de captura de paquetes
     void RenderCaptureToolbar() {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERAL));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALPRESS));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALHOVER));
         if (SnifferCore::IsCapturing()) { // Si la captura de paquetes está activa...
             if (ImGui::Button("Detener Captura", ImVec2(150, 30))) { // Dibuja el boton
                 SnifferCore::StopCapture(); // Al hacer clic, detiene la captura
@@ -311,22 +315,20 @@ namespace UIManager {
             ImGui::SameLine();
             ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO), " Captura finalizada. Haz clic en un paquete para inspeccionarlo");
         }
-        ImGui::PopStyleColor(3);
+
     }
 
     //Menu superior (algunas funciones son redundantes)
     void RenderToolbarTop() {
         //Fondo de lo desplegable
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(Colores::TOOLBAR));
-        //Color del texto
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
-        //Color de los botones al pasar el mouse por encima
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
         //pa seleccion en barra
         ImGui::PushStyleColor(ImGuiCol_Header, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
 
         if (ImGui::BeginMenuBar()) {
             //Crear pestañas para el menu superior
+            //--------- CAPTURA ------------
             if (ImGui::BeginMenu("Captura")) {
                 viewWindowTag=false;
                 if (ImGui::MenuItem("Detener Captura")) {
@@ -334,22 +336,35 @@ namespace UIManager {
                         SnifferCore::StopCapture();
                     }
                 }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Regresar a Interfaces")) {
+                    if (SnifferCore::IsCapturing()) {
+                        tipoFiltroActivo=0;
+                        SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
+                        isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
+                        selectedPacketIndex = -1;
+                    }
+                }
                 ImGui::EndMenu();
             }
+            //--------- FILTROS ------------
             if (ImGui::BeginMenu("Filtros")) {
                 viewWindowTag=false;
                 //Las opciones de esa pestaña, retorna true si es que se cliquea esa opcion
                 if (ImGui::MenuItem("IP"))
                 {
+                    etiquetaSearchSrc=false;
                     ipExactaGlobal = false;
                     tipoFiltroActivo = 1;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
                 if (ImGui::MenuItem("IP Origen")) {
+                    etiquetaSearchSrc=false;
                     tipoFiltroActivo = 2;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
                 if (ImGui::MenuItem("IP Destino")) {
+                    etiquetaSearchDest=false;
                     tipoFiltroActivo = 3;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
@@ -359,6 +374,9 @@ namespace UIManager {
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
                 if (ImGui::MenuItem("Combinado")) {
+                    etiquetaSearchSrc=false;
+                    etiquetaSearchDest=false;
+                    etiquetaSearch=false;
                     ipExactaGlobal = false;
                     tipoFiltroActivo = 5;
                     memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
@@ -372,15 +390,30 @@ namespace UIManager {
                 }
                 ImGui::EndMenu();       //pa cerrar el menú
             }
+            //--------- ETIQUETAS ------------
             if (ImGui::BeginMenu("Etiquetas")) {
                 if (ImGui::MenuItem("Gestionar Etiquetas")) {
                     viewWindowTag=true;
                 }
                 ImGui::EndMenu();
             }
+            //--------- EXPORTACIÓN ------------
+            if (ImGui::BeginMenu("Exportación")) {
+                if (ImGui::MenuItem("Exportar .CSV")) {
+                    //PENDIENTE
+                }
+                ImGui::EndMenu();
+            }
+            //--------- AYUDA ------------
+            if (ImGui::BeginMenu("Ayuda")) {
+                if (ImGui::MenuItem("Indicaciones")) {
+                    //PENDIENTE
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenuBar();
         }
-        ImGui::PopStyleColor(4);
+        ImGui::PopStyleColor(3);
     }
 
     //Para la ventana de gestión de etiquetas
@@ -388,12 +421,10 @@ namespace UIManager {
         //Si no es necesario no la dibuja
         if (!viewWindowTag) return;
 
-        static char textEdit[15]=" ";
-
         static char inputIP[46] = "";
         static char inputName[32] = "";
         static ImVec4 inputColor = ImVec4(0.937f, 0.792f, 0.898f, 1.0f);
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL));
+
         ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));//Barra de titulo
         // Creamos una ventana normal e independiente que flotará sobre el sniffer
         ImGui::Begin("Gestión de Etiquetas", &viewWindowTag, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
@@ -402,17 +433,7 @@ namespace UIManager {
         if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
             viewWindowTag = false; // Cerramos la ventana automáticamente
         }
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF000000), "Añadir / Modificar Etiqueta:");
-
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Colores::INPUT));         // Fondo Blanco
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::ColorConvertU32ToFloat4(Colores::INPUT));  // Fondo al pasar mouse
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImGui::ColorConvertU32ToFloat4(Colores::INPUT));   // Fondo al escribir
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::TEXTINPUT));           // Texto Negro
-        ImGui::PushStyleColor(ImGuiCol_TextSelectedBg, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO)); // Cursor/Selección Negro
-
-
-        //Placeholder en un gris suave para que se note la sugerencia
-        ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO));
+        ImGui::Text("Añadir / Modificar Etiqueta:");
 
         ImGui::InputTextWithHint("Dirección IP", "Ej: 192.168.1.1", inputIP, IM_ARRAYSIZE(inputIP));
         if (ImGui::IsItemActivated() && editTag) {
@@ -422,24 +443,10 @@ namespace UIManager {
 
         ImGui::InputTextWithHint("Nombre Etiqueta", "Ej: Servidor", inputName, IM_ARRAYSIZE(inputName));
 
-        ImGui::PopStyleColor(6);
-
-
-
-        //Botones
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERAL));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALPRESS));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALHOVER));
-
         ImGui::ColorEdit4("Color Visual", (float*)&inputColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
-        if (editTag) {
-            strcpy(textEdit, "Actualizar");
-        }
-        else {
-            strcpy(textEdit, "Guardar");
-        }
+        const char* btnText = editTag ? "Actualizar" : "Guardar";
 
-        if (ImGui::Button(textEdit, ImVec2(120, 0))) {
+        if (ImGui::Button(btnText, ImVec2(120, 0))) {
             ImU32 colorU32 = ImGui::ColorConvertFloat4ToU32(inputColor);
             SnifferCore::AddTag(inputIP, inputName, colorU32);
             memset(inputIP, 0, sizeof(inputIP));
@@ -448,7 +455,7 @@ namespace UIManager {
         }
 
         ImGui::Separator();
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::NEGRO), "Etiquetas Existentes:");
+        ImGui::Text("Etiquetas Existentes:");
 
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));    //contenedor de las etiquetas
         if (ImGui::BeginChild("ListaTags", ImVec2(400, 200), true)) {
@@ -480,10 +487,9 @@ namespace UIManager {
         if (ImGui::Button("Cerrar", ImVec2(120, 0))) {
             viewWindowTag = false;
         }
-        ImGui::PopStyleColor(3);
 
         ImGui::End(); //Cierra la sub-ventana
-        ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor();
     }
 
     // Tabla de captura de paquetes
@@ -498,10 +504,6 @@ namespace UIManager {
         //Lineas divisoras
         ImGui::PushStyleColor(ImGuiCol_TableBorderLight, ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO));
         ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
-
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO));
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO));
-        ImGui::PushStyleColor(ImGuiCol_Header, ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO));
 
         // Crea una región desplazable e independiente del resto de la ventana
         if (ImGui::BeginChild("Tabla", ImVec2(0, tableHeight), true)) {
@@ -532,7 +534,7 @@ namespace UIManager {
                         bool isSelected = (selectedPacketIndex == i); // Es esta la fila que el usuario seleccionó?
                         
                         if (isSelected) { 
-                            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Colores::VERDEMENTAGRISACEO); // Pinta el fondo en azul
+                            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Colores::VERDEMENTAGRISACEO); // Pinta el fondo
                             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO)); // Pone el texto en blanco para que se lea bien
                         }
                         
@@ -606,7 +608,7 @@ namespace UIManager {
             }
         }
         ImGui::EndChild(); // Cierra la zona desplazable
-        ImGui::PopStyleColor(7);
+        ImGui::PopStyleColor(4);
     }
 
     // Interfaz - Inspeccion Profunda
@@ -616,10 +618,7 @@ namespace UIManager {
     void RenderPacketDetails(const std::vector<PacketData>& packets) {
         // Solo dibuja si hay un paquete seleccionado y el índice es válido
         if (selectedPacketIndex >= 0 && selectedPacketIndex < packets.size()) {
-            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO));
-            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO));
-            ImGui::PushStyleColor(ImGuiCol_Header, ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO));
-
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));
             const auto& sel_pkt = packets[selectedPacketIndex]; // El paquete seleccionado
             const unsigned char* raw = sel_pkt.rawBytes.data(); // Puntero al inicio de los bytes crudos del paquete
             size_t capSize = sel_pkt.rawBytes.size();           // Cantidad total de bytes capturados
@@ -725,7 +724,7 @@ namespace UIManager {
                 ImGui::EndChild(); // Fin de columna hexadecimal
                 ImGui::EndTable(); // Fin tabla
             }
-            ImGui::PopStyleColor(3);
+            ImGui::PopStyleColor();
         }
     }
 
@@ -761,17 +760,12 @@ namespace UIManager {
                 ImGui::Separator();
                 ImGui::Spacing();
 
-                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(0xFF65784D), "Filtro Activo:");
+                float espacioTexto = ImGui::CalcTextSize("Filtro Activo: ").x + ImGui::GetStyle().ItemSpacing.x;
+                float posYTecho = ImGui::GetCursorPosY(); //Posicion para despues
 
-                //Estilo de las areas de texto
-                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFF77723E));
-                ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::ColorConvertU32ToFloat4(0xFF756E26));
-                ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFFFFEBF7));
-                ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImGui::ColorConvertU32ToFloat4(0xFFDBD7B2));
-                ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(0xFF303030));
-                ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImGui::ColorConvertU32ToFloat4(0xFF00FF00));
-                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+                ImGui::Text("Filtro Activo:");
+
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
 
                 //Para ahorrar la configuración de cada caja de texto
                 auto RenderInputFiltro = [&](const char* id, const char* placeholder, char* buffer, size_t size) {
@@ -781,37 +775,43 @@ namespace UIManager {
 
                 if (tipoFiltroActivo == 5) {
                     //posiblemente 4 filtros
-
+                    //IP GLOBAL
                     ImGui::SameLine();
-
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_ip", "Buscar IP (Parcial)...", filtroIP, sizeof(filtroIP));
                     ImGui::SameLine();
-                    //Por como funcionan los colores, estos se agregan solo en el momento de la checkBox, para así no afectar a los de las cajas de texto
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
                     ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);
-                    ImGui::PopStyleColor(2);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Etiqueta##search_Global", &etiquetaSearch);
+                    ImGui::PopStyleColor();
                     ImGui::EndGroup();
 
-                    ImGui::SameLine();
+                    //IP ORIGEN
+                    ImGui::SameLine(0.0f,25.0f);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_origen", "IP Origen Exacta...", filtroIPOrigen, sizeof(filtroIPOrigen));
-                    ImGui::Dummy(ImVec2(0, 15)); // Espaciador para alinear horizontalmente
+                    ImGui::SameLine(); // <--- Para ponerlo al lado de la caja de texto
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
+                    ImGui::Checkbox("Etiqueta##search_origen", &etiquetaSearchSrc);
+                    ImGui::PopStyleColor();
                     ImGui::EndGroup();
 
-                    ImGui::SameLine();
+                    //IP DESTINO
+                    ImGui::SetCursorPosX(ImGui::GetStyle().WindowPadding.x + espacioTexto);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_destino", "IP Destino Exacta...", filtroIPDestino, sizeof(filtroIPDestino));
-                    ImGui::Dummy(ImVec2(0, 15));
+                    ImGui::SameLine(); // <--- Para ponerlo al lado
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
+                    ImGui::Checkbox("Etiqueta##search_destino", &etiquetaSearchDest);
+                    ImGui::PopStyleColor();
                     ImGui::EndGroup();
 
-                    ImGui::SameLine();
+                    //PROTOCOLO
+                    ImGui::SameLine(0.0f,97.0f);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_protocolo", "Protocolo...", filtroProtocolo, sizeof(filtroProtocolo));
-                    ImGui::Dummy(ImVec2(0, 15));
                     ImGui::EndGroup();
-
 
                 }
                 else {
@@ -821,33 +821,70 @@ namespace UIManager {
                         ImGui::SameLine();
                         RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
                         ImGui::SameLine();
-                        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFF0EAE6));
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(0xFF000000));
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
                         ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);       //el checkbox puedes solo verdadero o falso
-                        ImGui::PopStyleColor(2);
+                        ImGui::SameLine();
+                        ImGui::Checkbox("Etiqueta##search", &etiquetaSearch);
+                        ImGui::PopStyleColor(1);
                     }
                     else {
-                        if (tipoFiltroActivo == 2) placeholder += "IP Origen...";
-                        if (tipoFiltroActivo == 3) placeholder += "IP Destino...";
-                        if (tipoFiltroActivo == 4) placeholder += "Protocolo...";
+                        if (tipoFiltroActivo == 2) {
+                            placeholder += "IP Origen...";
+                            ImGui::SameLine();
+                            RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                            ImGui::SameLine();
+                            ImGui::Checkbox("Etiqueta##search", &etiquetaSearchSrc);
+                        }
+                        if (tipoFiltroActivo == 3) {
+                            placeholder += "IP Destino...";
+                            ImGui::SameLine();
+                            RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                            ImGui::SameLine();
+                            ImGui::Checkbox("Etiqueta##search", &etiquetaSearchDest);
+                        }
+                        if (tipoFiltroActivo == 4) {
+                            placeholder += "Protocolo...";
+                            ImGui::SameLine();
+                            RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                        }
 
-                        ImGui::SameLine();
-                        RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
                     }
                 }
 
-                ImGui::PopStyleColor(7);
-                ImGui::PopStyleVar(1);
+                ImGui::PopStyleColor();
+                float posYSuelo = ImGui::GetCursorPosY();   //Para el boton de X en opcion 5
 
                 //boton
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(0xFF0000FC));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(0xFF2020BD));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(0xFF0000A3));
+                bool pulsarBoton = false;
+                float altoDinamicoBoton = (posYSuelo - posYTecho) - ImGui::GetStyle().ItemSpacing.y;
 
-                if (ImGui::Button("X")) {
+                if (tipoFiltroActivo == 5) {
+                    ImGui::SameLine(0.0f, 120.0f);
+                    //El botón es más grande en la posición adecuada
+                    ImGui::SetCursorPosY(posYTecho);
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+                    ImGui::SetWindowFontScale(2.0f); // Texto grande
+
+                    if (ImGui::Button("X##gigante", ImVec2(45.0f, altoDinamicoBoton))) {
+                        pulsarBoton = true;
+                    }
+
+                    ImGui::SetWindowFontScale(1.0f);
+                    ImGui::PopStyleVar();
+                }
+                else {
+                    ImGui::SameLine();
+                    //Boton clásico
+                    if (ImGui::Button("X")) {
+                        pulsarBoton = true;
+                    }
+                }
+                ImGui::SetCursorPosY(posYSuelo);    //Devolver el cursor a la posición correcta
+
+                //Acción
+                if (pulsarBoton) {
                     tipoFiltroActivo = 0;
-                    //limpiamos absolutamente todos los buffers al cerrar
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                     memset(filtroIP, 0, sizeof(filtroIP));
                     memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
@@ -855,7 +892,7 @@ namespace UIManager {
                     memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
                     ipExactaGlobal = false;
                 }
-                ImGui::PopStyleColor(3);
+
                 ImGui::Spacing();
             }
 
@@ -868,7 +905,7 @@ namespace UIManager {
             const auto& packets = SnifferCore::GetCapturedPackets(); // Obtiene la lista completa de paquetes capturados
 
             //Se hace la función de filtrado y se almacena en una copia, si se aplican filtros solo contendra esos elementos, si no contendra to_do
-            std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal);
+            std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal,etiquetaSearch,etiquetaSearchSrc,etiquetaSearchDest);
 
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF)); // Fuerza fondo blanco en la tabla crudo
 
@@ -887,5 +924,105 @@ namespace UIManager {
 
         ImGui::End(); // Finaliza la ventana y le indica a OpenGL que dibuje to_do en pantalla
         ImGui::PopStyleColor(2);
+    }
+    void TextCenter(const char* texto, ImU32 colorU32) {
+        float anchoVentana = ImGui::GetWindowSize().x;
+        float anchoTexto = ImGui::CalcTextSize(texto).x;
+
+        //calculamos la posición exacta para que quede simétrico
+        ImGui::SetCursorPosX((anchoVentana - anchoTexto) * 0.5f);
+
+        ImVec4 colorConvertido = ImGui::ColorConvertU32ToFloat4(colorU32);
+
+        ImGui::TextColored(colorConvertido, "%s", texto);
+    }
+
+    void RenderSplashScreen(float currentTimer, float totalDuration) {
+        //centrar la ventana
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize, ImGuiCond_Always);
+        //Diseñito
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL));
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoCollapse;
+
+        ImGui::Begin("SplashWindow", nullptr, flags);
+        float anchoVentana = ImGui::GetWindowSize().x;
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+        //Animación
+        if (!splashFrames.empty()) {
+            const float tiempoPorFrame = 0.35f;
+            int frameIndex = static_cast<int>(currentTimer / tiempoPorFrame) % splashFrames.size();
+
+            float anchoImagen = 270.0f;
+            float altoImagen = 180.0f;
+            // Centrado horizontal matemático exacto
+            ImGui::SetCursorPosX((anchoVentana - anchoImagen) * 0.5f);
+            ImGui::SetCursorPosY(35.0f); // Le damos un poquito más de aire arriba
+
+            // Renderizamos con el alto corregido
+            ImGui::Image((ImTextureID)(uintptr_t)splashFrames[frameIndex], ImVec2(anchoImagen, altoImagen));
+        }
+
+        ImGui::SetCursorPosY(230.0f);
+        //Titulo
+        TextCenter("=== PACKET SNIFFER ===", Colores::AZULMARINOOSCURO);
+        ImGui::Spacing();
+
+        //Mensajes de carga
+        TextCenter("Inicializando hilos de escucha...", Colores::AZULMARINOOSCURO);
+        TextCenter("Cargando base de datos de etiquetas...", Colores::AZULMARINOOSCURO);
+
+        ImGui::Spacing(); ImGui::Spacing();
+
+        //barra de progreso
+        float progreso = currentTimer / totalDuration;
+
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));
+
+        float anchoBarra = 480.0f;
+        ImGui::SetCursorPosX((anchoVentana - anchoBarra) * 0.5f);
+        ImGui::ProgressBar(progreso, ImVec2(anchoBarra, 16.0f), "");
+        ImGui::PopStyleColor(2);
+
+        //Una info
+        ImGui::SetCursorPosY(ImGui::GetWindowSize().y - 45.0f);
+        TextCenter("Packet Sniffer - 2026", Colores::ROSAVIEJOOSCURO);
+        ImGui::End();
+        ImGui::PopStyleColor();
+    }
+
+    GLuint LoadTextureFromFile(const char* filename) {
+        int width, height, channels;
+        unsigned char* data = stbi_load(filename, &width, &height, &channels, 4);
+        if (data == nullptr) return 0;
+
+        GLuint textureID;
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
+
+        return textureID;
+    }
+    void LoadSplashResources() {
+        for (int i = 1; i <= TOTAL_FRAMES; i++) {
+            // Construye la ruta dinámicamente: assets/splash/frame_0.png, frame_1.png...
+            std::string path = "assets/splash/frame" + std::to_string(i) + ".png";
+
+            GLuint tex = LoadTextureFromFile(path.c_str());
+            if (tex != 0) {
+                splashFrames.push_back(tex);
+            }else {
+                printf("Error: No se pudo cargar la imagen en la ruta: %s\n", path.c_str());
+            }
+        }
     }
 }
