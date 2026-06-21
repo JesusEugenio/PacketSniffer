@@ -6,6 +6,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <winsock2.h>
+#include <windows.h>
+#include <commdlg.h> // Para el diálogo de guardar archivos
 #include "stb_image.h"
 #include <GL/gl.h> // O tus headers de OpenGL/GLFW (ej. <GLFW/glfw3.h>)
 #include "UIManager.h"
@@ -26,6 +28,7 @@ namespace UIManager {
     std::string currentInterfaceName = "";   // Nombre del dispositivo de red seleccionado
     int selectedPacketIndex = -1;            // Registra qué fila de la tabla le dio clic el usuario (-1 es ninguna)
 
+    static bool requestExportCSV = false;
     // Fuente tipografica
     ImFont* fontBold = nullptr;
     ImFont* fontMedium = nullptr;
@@ -435,7 +438,7 @@ namespace UIManager {
             //--------- EXPORTACIÓN ------------
             if (ImGui::BeginMenu("Exportación")) {
                 if (ImGui::MenuItem("Exportar .CSV")) {
-                    //PENDIENTE
+                    requestExportCSV = true; // Activa la bandera para exportar a CSV en el siguiente ciclo de renderizado
                 }
                 ImGui::EndMenu();
             }
@@ -764,6 +767,32 @@ namespace UIManager {
     }
 
     // ============================================================================
+    // FUNCION PARA ABRIR LA VENTANA NATIVA DE GUARDADO DE ARCHIVOS DEL SISTEMA OPERATIVO
+    // ============================================================================
+    std::string AbrirDialogoGuardar(){
+        OPENFILENAME ofn;
+        CHAR szFile[MAX_PATH] = { 0 };
+
+        strcpy(szFile, "captura.csv"); // Nombre de archivo por defecto
+
+        ZeroMemory(&ofn, sizeof(OPENFILENAME));
+        ofn.lStructSize = sizeof(OPENFILENAME);
+        ofn.hwndOwner = NULL;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = "Archivos CSV (*.csv)\0*.csv\0Todos los archivos (*.*)\0*.*\0";
+        ofn.nFilterIndex = 1;
+        ofn.lpstrDefExt = "csv";
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
+    
+        if (GetSaveFileName(&ofn)) {
+            return std::string(ofn.lpstrFile);
+        }
+
+        return "";
+    }
+
+    // ============================================================================
     // FUNCION DE RENDERIZADO PRINCIPAL
     // ============================================================================
 
@@ -941,6 +970,18 @@ namespace UIManager {
 
             //Se hace la función de filtrado y se almacena en una copia, si se aplican filtros solo contendra esos elementos, si no contendra to_do
             std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal,etiquetaSearch,etiquetaSearchSrc,etiquetaSearchDest);
+
+            if (requestExportCSV) {
+               std::string ruta = AbrirDialogoGuardar();
+               if (!ruta.empty()) {
+                if (SnifferCore::ExportToCSV(ruta, paquetesFiltrados)) {
+                    printf("Exportación exitosa a %s\n", ruta.c_str());
+                } else {
+                    printf("Error al exportar a %s\n", ruta.c_str());
+                }
+               }
+                requestExportCSV = false; // Reseteamos la bandera para evitar exportaciones múltiples no deseadas
+            }
 
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF)); // Fuerza fondo blanco en la tabla crudo
 

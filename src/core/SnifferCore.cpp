@@ -378,4 +378,26 @@ namespace SnifferCore {
         return MapIpTag;        //Regresa las etiquetas
     }
 
+    bool ExportToCSV(const std::string& filename, const std::vector<PacketData>& packets) {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            return false; // Error al abrir el archivo
+        }
+
+        file << "No.,Time,Source,Destination,Protocol,Length,Info,MAC Source,MAC Destination\n";
+        int count = 1;
+        for (const auto& pkt : packets) {
+            file << count++ << ","
+                 << pkt.time << ","
+                 << pkt.source << ","
+                 << pkt.destination << ","
+                 << pkt.protocol << ","
+                 << pkt.length << ","
+                 << pkt.info << ","
+                 << pkt.macSource << ","
+                 << pkt.macDest << "\n";
+        }
+        file.close();
+        return true;
+    }
 }
