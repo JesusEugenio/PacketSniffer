@@ -137,7 +137,6 @@ namespace PacketParser {
 
             if (payloadSize > 1) { // Si el paquete trae carga útil (datos reales, no solo control)
                 if (service == "HTTPS") { 
-                    data.protocol = "TLS/SSL"; // Cambiamos el nombre a seguridad si es tráfico web encriptado
                     data.info = "Application Data (" + std::to_string(payloadSize) + " bytes)"; // Mostramos la cantidad de datos
                 } 
                 else if (service != "") {

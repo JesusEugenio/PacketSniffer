@@ -395,7 +395,7 @@ namespace UIManager {
         style.Colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
         style.Colors[ImGuiCol_FrameBgActive]  = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
 
-        style.Colors[ImGuiCol_TextSelectedBg] = ImGui::ColorConvertU32ToFloat4(Colores::NEGRO);
+        style.Colors[ImGuiCol_TextSelectedBg] = ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO);
 
         style.Colors[ImGuiCol_TextDisabled]   = ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO);
     }
@@ -694,7 +694,9 @@ namespace UIManager {
         static char inputName[32] = "";
         static ImVec4 inputColor = ImVec4(0.937f, 0.792f, 0.898f, 1.0f);
 
-        ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));//Barra de titulo
+        ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO)); // Activa
+        ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));       // Inactiva
+        
         // Creamos una ventana normal e independiente que flotará sobre el sniffer
         ImGui::Begin("Gestión de Etiquetas", &viewWindowTag, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
 
@@ -712,7 +714,74 @@ namespace UIManager {
 
         ImGui::InputTextWithHint("Nombre Etiqueta", "Ej: Servidor", inputName, IM_ARRAYSIZE(inputName));
 
-        ImGui::ColorEdit4("Color Visual", (float*)&inputColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+    // Variable estática para recordar el color antes de abrir la paleta
+        static ImVec4 backupColor;
+
+        ImGui::Text("Color Visual");
+        if (ImGui::ColorButton("##boton_color", inputColor, ImGuiColorEditFlags_NoAlpha)) {
+            backupColor = inputColor; 
+            ImGui::OpenPopup("Selector de Color"); 
+        }
+
+        // --- CORTINA CAFÉ MORADOSA OSCURECIDA DIRECTA ---
+        // 0xCC494549 es tu CAFEMORADOSO con luz reducida y 80% de opacidad
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImGui::ColorConvertU32ToFloat4(0xCC494549));
+        
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(0xFF252525));
+
+        if (ImGui::BeginPopupModal("Selector de Color", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::BLANCO));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFF151515));
+
+            // 1. Dibujamos SOLO el selector de colores
+            ImGui::BeginGroup();
+            ImGui::ColorPicker4("##picker", (float*)&inputColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
+            ImGui::EndGroup();
+
+            ImGui::SameLine(); 
+
+            // 2. NUESTRA PROPIA BARRA LATERAL EN ESPAÑOL
+            ImGui::BeginGroup();
+            
+            ImGui::Text("Nuevo");
+            ImGui::ColorButton("##nuevo", inputColor, ImGuiColorEditFlags_NoAlpha, ImVec2(65, 65));
+            
+            ImGui::Spacing();
+            ImGui::Spacing();
+            
+            ImGui::Text("Original");
+            if (ImGui::ColorButton("##original", backupColor, ImGuiColorEditFlags_NoAlpha, ImVec2(65, 65))) {
+                inputColor = backupColor;
+            }
+            
+            ImGui::EndGroup();
+
+            ImGui::PopStyleColor(2); // Limpiamos el texto blanco y las cajitas oscuras
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Botones inferiores
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
+
+            float mitadAncho = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+
+            if (ImGui::Button("Aceptar", ImVec2(mitadAncho, 30.0f))) { 
+                ImGui::CloseCurrentPopup(); 
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancelar", ImVec2(mitadAncho, 30.0f))) { 
+                inputColor = backupColor; 
+                ImGui::CloseCurrentPopup(); 
+            }
+
+            ImGui::PopStyleColor(); // Limpiamos el texto negro de los botones
+            ImGui::EndPopup();
+        }
+        ImGui::PopStyleColor(2); // Limpiamos el fondo del popup y la cortina oscurecida
+        
         const char* btnText = editTag ? "Actualizar" : "Guardar";
 
         if (ImGui::Button(btnText, ImVec2(120, 0))) {
@@ -758,7 +827,7 @@ namespace UIManager {
         }
 
         ImGui::End(); //Cierra la sub-ventana
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(2);
     }
 
     // Tabla de captura de paquetes
