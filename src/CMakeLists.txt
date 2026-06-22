@@ -37,6 +37,8 @@ target_link_libraries(PacketSniffer PRIVATE
     iphlpapi
     winmm
     comdlg32
+    xlsxwriter
+    z
 )
 
 # Le decimos a CMake que copie la carpeta de fuentes justo al lado del .exe

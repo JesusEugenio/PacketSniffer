@@ -8,6 +8,7 @@
 #include "SnifferCore.h"
 #include <winsock2.h>
 #include <iphlpapi.h>
+#include <xlsxwriter.h>
 #include <unordered_map>
 #include <thread> // Permite ramificar la ejecución en hilos
 #include <atomic> // Variables especializadas a prueba de choques de memoria
@@ -397,6 +398,49 @@ namespace SnifferCore {
                  << pkt.macDest << "\n";
         }
         file.close();
+        return true;
+    }
+
+    bool ExportToXLSX(const std::string& filename, const std::vector<PacketData>& packets) {
+        lxw_workbook  *workbook  = workbook_new(filename.c_str());
+        if (!workbook) return false;
+        
+        lxw_worksheet *worksheet = workbook_add_worksheet(workbook, "Trafico Capturado");
+
+        lxw_format *header_format = workbook_add_format(workbook);
+        format_set_bold(header_format);
+
+        worksheet_write_string(worksheet, 0, 0, "No.", header_format);
+        worksheet_write_string(worksheet, 0, 1, "Time", header_format);
+        worksheet_write_string(worksheet, 0, 2, "Source", header_format);
+        worksheet_write_string(worksheet, 0, 3, "Destination", header_format);
+        worksheet_write_string(worksheet, 0, 4, "Protocol", header_format);
+        worksheet_write_string(worksheet, 0, 5, "Length", header_format);
+        worksheet_write_string(worksheet, 0, 6, "Info", header_format);
+        worksheet_write_string(worksheet, 0, 7, "MAC Source", header_format);
+        worksheet_write_string(worksheet, 0, 8, "MAC Destination", header_format);
+
+        // Ensanchamos las columnas para que la información quepa bien
+        worksheet_set_column(worksheet, 1, 1, 15, NULL); // Columna de Tiempo
+        worksheet_set_column(worksheet, 2, 3, 20, NULL); // IPs origen y destino
+        worksheet_set_column(worksheet, 6, 6, 50, NULL); // Columna Info (muy ancha)
+        worksheet_set_column(worksheet, 7, 8, 20, NULL); // Columnas MAC
+
+        int row = 1;
+        for (const auto& pkt : packets) {
+            worksheet_write_number(worksheet, row, 0, pkt.id, NULL);
+            worksheet_write_string(worksheet, row, 1, pkt.time.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 2, pkt.source.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 3, pkt.destination.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 4, pkt.protocol.c_str(), NULL);
+            worksheet_write_number(worksheet, row, 5, pkt.length, NULL);
+            worksheet_write_string(worksheet, row, 6, pkt.info.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 7, pkt.macSource.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 8, pkt.macDest.c_str(), NULL);
+            row++;
+        }
+
+        workbook_close(workbook);
         return true;
     }
 }

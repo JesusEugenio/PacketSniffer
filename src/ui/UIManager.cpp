@@ -29,6 +29,7 @@ namespace UIManager {
     int selectedPacketIndex = -1;            // Registra qué fila de la tabla le dio clic el usuario (-1 es ninguna)
 
     static bool requestExportCSV = false;
+    static bool requestExportXLSX = false;
     // Fuente tipografica
     ImFont* fontBold = nullptr;
     ImFont* fontMedium = nullptr;
@@ -437,8 +438,11 @@ namespace UIManager {
             }
             //--------- EXPORTACIÓN ------------
             if (ImGui::BeginMenu("Exportación")) {
-                if (ImGui::MenuItem("Exportar .CSV")) {
+                if (ImGui::MenuItem("Exportar .csv")) {
                     requestExportCSV = true; // Activa la bandera para exportar a CSV en el siguiente ciclo de renderizado
+                }
+                if (ImGui::MenuItem("Exportar .xlsx")){
+                    requestExportXLSX = true;
                 }
                 ImGui::EndMenu();
             }
@@ -768,7 +772,7 @@ namespace UIManager {
     // ============================================================================
     // FUNCION PARA ABRIR LA VENTANA NATIVA DE GUARDADO DE ARCHIVOS DEL SISTEMA OPERATIVO
     // ============================================================================
-    std::string AbrirDialogoGuardar(){
+    std::string AbriDialogoGuardaCSV(){
         OPENFILENAME ofn;
         CHAR szFile[MAX_PATH] = { 0 };
 
@@ -784,6 +788,28 @@ namespace UIManager {
         ofn.lpstrDefExt = "csv";
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
     
+        if (GetSaveFileName(&ofn)) {
+            return std::string(ofn.lpstrFile);
+        }
+
+        return "";
+    }
+
+    std::string AbriDialogoGuardaXLSX(){
+         OPENFILENAME ofn;
+        CHAR szFile[MAX_PATH] = { 0 };
+
+        strcpy(szFile, "captura.xlsx"); // Nombre de archivo por defecto
+
+        ZeroMemory(&ofn, sizeof(OPENFILENAME));
+        ofn.lStructSize = sizeof(OPENFILENAME);
+        ofn.hwndOwner = NULL;
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = "Archivos XLSX (*.xlsx)\0*.xlsx\0Todos los archivos (*.*)\0*.*\0";
+        ofn.nFilterIndex = 1;
+        ofn.lpstrDefExt = "xlsx";
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
         if (GetSaveFileName(&ofn)) {
             return std::string(ofn.lpstrFile);
         }
@@ -971,7 +997,7 @@ namespace UIManager {
             std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal,etiquetaSearch,etiquetaSearchSrc,etiquetaSearchDest);
 
             if (requestExportCSV) {
-               std::string ruta = AbrirDialogoGuardar();
+               std::string ruta = AbriDialogoGuardaCSV();
                if (!ruta.empty()) {
                 if (SnifferCore::ExportToCSV(ruta, paquetesFiltrados)) {
                     printf("Exportación exitosa a %s\n", ruta.c_str());
@@ -980,6 +1006,18 @@ namespace UIManager {
                 }
                }
                 requestExportCSV = false; // Reseteamos la bandera para evitar exportaciones múltiples no deseadas
+            }
+
+            if (requestExportXLSX) {
+               std::string ruta = AbriDialogoGuardaXLSX();
+               if (!ruta.empty()) {
+                if (SnifferCore::ExportToXLSX(ruta, paquetesFiltrados)) {
+                    printf("Exportación exitosa a %s\n", ruta.c_str());
+                } else {
+                    printf("Error al exportar a %s\n", ruta.c_str());
+                }
+               }
+                requestExportXLSX = false; // Reseteamos la bandera para evitar exportaciones múltiples no deseadas
             }
 
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFFFFFFFF)); // Fuerza fondo blanco en la tabla crudo
