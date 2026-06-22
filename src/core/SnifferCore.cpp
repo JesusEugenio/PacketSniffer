@@ -190,6 +190,7 @@ namespace SnifferCore {
         if (workerThread.joinable()) { 
             workerThread.join(); 
         }
+        PacketParser::ResetPacketID();// reiniciamos el Id de los paquetes
 
         isCapturingFlag = true;     // Avisa a la interfaz gráfica que la captura comenzó
         isFirstPacket = true;       // Reinicia el cronómetro
@@ -290,7 +291,8 @@ namespace SnifferCore {
                     pasaFiltro = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
                     break;
                 }
-                case 5: { //Combinacion
+                case 5: {
+                    //Combinacion
                     std::string bIP(filtroIP), bOrig(filtroOrigen), bDest(filtroDestino), bProt(filtroProtocolo);
 
                     //Si no manda nada entonces esa digamos que ya es verdadero para no evaluarla

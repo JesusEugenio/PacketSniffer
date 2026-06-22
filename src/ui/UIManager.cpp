@@ -45,10 +45,16 @@ namespace UIManager {
     static bool etiquetaSearch=false;
     static bool etiquetaSearchSrc=false;
     static bool etiquetaSearchDest=false;
-
+    //Filtro/búsqueda
+    static char filtroID[16] = "";
+    static bool buscar=false;
+    static bool requestScrollToSelection = false;
     //etiquetas
     static bool viewWindowTag = false;
     static bool editTag=false;
+
+    //para el reinicio de la captura
+    static std::string currentInterfaceInternalName = "";
 
 
     // Funcion para traducir los nombres de los Protocolos
@@ -323,6 +329,7 @@ namespace UIManager {
                 if (ImGui::Selectable(iface.description.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) { 
                     if (ImGui::IsMouseDoubleClicked(0)) { // Si el usuario hace doble clic izquierdo...
                         currentInterfaceName = iface.description;   // Guarda el nombre de la tarjeta elegida
+                        currentInterfaceInternalName = iface.name;
                         isShowingCaptureScreen = true;              // Cambia a la pantalla de captura
                         SnifferCore::StartCapture(iface.name);      // Ordena al motor que empiece a capturar paquetes
                     }
@@ -357,6 +364,20 @@ namespace UIManager {
 
     }
 
+    //función auxiliar de busqueda
+    void CancelarBusqueda() {
+        int idEnCaja = std::atoi(filtroID);
+
+        // Si el seleccionado coincide con lo que había en la caja, deseleccionamos
+        if (selectedPacketIndex == idEnCaja && selectedPacketIndex != -1) {
+            selectedPacketIndex = -1;
+        }
+
+        // Limpiamos estado
+        memset(filtroID, 0, sizeof(filtroID));
+        buscar = false;
+    }
+
     //Menu superior (algunas funciones son redundantes)
     void RenderToolbarTop() {
         //Fondo de lo desplegable
@@ -376,13 +397,25 @@ namespace UIManager {
                     }
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Regresar a Interfaces")) {
-                    if (SnifferCore::IsCapturing()) {
-                        tipoFiltroActivo=0;
-                        SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
-                        isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
+                if (ImGui::MenuItem("Reiniciar Captura")) {
+                    if (!currentInterfaceInternalName.empty()) {
+                        if (SnifferCore::IsCapturing()) { //Paramos si es que esta capturando
+                            SnifferCore::StopCapture();
+                        }
+                        //Iniciar nueva captura en la misma tarjeta
+                        SnifferCore::StartCapture(currentInterfaceInternalName);
+                        tipoFiltroActivo = 0;
                         selectedPacketIndex = -1;
                     }
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Regresar a Interfaces")) {
+                    if (SnifferCore::IsCapturing()) {
+                        SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
+                    }
+                    isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
+                    selectedPacketIndex = -1;
+                    tipoFiltroActivo=0;
                 }
                 ImGui::EndMenu();
             }
@@ -428,6 +461,18 @@ namespace UIManager {
                     tipoFiltroActivo = 0;
                 }
                 ImGui::EndMenu();       //pa cerrar el menú
+            }
+            // -------- BUSQUEDA -------------
+            if (ImGui::BeginMenu("Búsqueda")) {
+                if (ImGui::MenuItem("Paquete ID")) {
+                    buscar=true;
+                    memset(filtroID, 0, sizeof(filtroID));
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Cancelar Busqueda")) {
+                    CancelarBusqueda();
+                }
+                ImGui::EndMenu();
             }
             //--------- ETIQUETAS ------------
             if (ImGui::BeginMenu("Etiquetas")) {
@@ -562,6 +607,17 @@ namespace UIManager {
                 ImGui::TableSetupColumn("Info", ImGuiTableColumnFlags_WidthStretch); // Esta columna se expande para llenar el espacio restante
                 ImGui::TableHeadersRow(); // Dibujamos la configuracion anterior
 
+                //Buscamos el índice real del paquete en el vector, esto para mantenerlo enfocado si esta seleccionado uno
+                int targetIndex = -1;
+                if (selectedPacketIndex != -1) {
+                    for (int i = 0; i < packets.size(); ++i) {
+                        if (packets[i].id == selectedPacketIndex) {
+                            targetIndex = i;
+                            break;
+                        }
+                    }
+                }
+
                 // ImGuiListClipper es una herramienta de optimización:
                 // En lugar de dibujar las 10,000 filas, solo dibuja las que el usuario puede ver en pantalla
                 ImGuiListClipper clipper; 
@@ -575,7 +631,7 @@ namespace UIManager {
                         
                         bool isSelected = (selectedPacketIndex == pkt.id); // Es esta la fila que el usuario seleccionó?
                         
-                        if (isSelected) { 
+                        if (isSelected) {
                             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Colores::VERDEMENTAGRISACEO); // Pinta el fondo
                             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO)); // Pone el texto en blanco para que se lea bien
                         }
@@ -586,9 +642,14 @@ namespace UIManager {
                         snprintf(label, sizeof(label), "%d##%d", pkt.id, i);
                         
                         // Hace toda la fila clickeable
-                        if (ImGui::Selectable(label, isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) { 
-                            if (SnifferCore::IsCapturing() == false) { // Solo permite seleccionar si la captura ya terminó
-                                selectedPacketIndex = pkt.id; // Guarda el índice del paquete seleccionado
+                        if (ImGui::Selectable(label, isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
+                            if (selectedPacketIndex == pkt.id) {
+                                //si ya estaba seleccionado, lo deseleccionamos
+                                selectedPacketIndex = -1;
+                            } else {
+                                //si era otro o no había nada, seleccionamos este
+                                selectedPacketIndex = pkt.id;
+                                requestScrollToSelection = false;
                             }
                         }
                         
@@ -637,16 +698,20 @@ namespace UIManager {
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.protocol.c_str());
                         ImGui::TableNextColumn(); ImGui::Text("%d", pkt.length); 
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.info.c_str());
-                        
+
                         if (isSelected) ImGui::PopStyleColor(); // Quita el color blanco del texto (solo aplica a la fila seleccionada)
                     }
                 }
                 ImGui::EndTable(); // Cierra la tabla
-            }
-            
-            // Auto-scroll: Si está capturando, si hay paquetes y si el usuario no ha seleccionado nada
-            if (SnifferCore::IsCapturing() && packets.size() > 0 && selectedPacketIndex == -1) { 
-                ImGui::SetScrollHereY(1.0f); // Desplaza la barra de scroll al 100% (al final)
+                if (requestScrollToSelection && selectedPacketIndex != -1) {
+                    // Calculamos la posición relativa del índice buscado
+                    float scrollY = (float)targetIndex * ImGui::GetTextLineHeightWithSpacing();
+                    ImGui::SetScrollY(scrollY - (tableHeight * 0.5f));
+                    requestScrollToSelection = false;
+                }
+                else if (SnifferCore::IsCapturing() && packets.size() > 0 && selectedPacketIndex == -1) { // Auto-scroll: Si está capturando, si hay paquetes y si el usuario no ha seleccionado nada
+                    ImGui::SetScrollHereY(1.0f); // Desplaza la barra de scroll al 100% (al final)
+                }
             }
         }
         ImGui::EndChild(); // Cierra la zona desplazable
@@ -852,7 +917,9 @@ namespace UIManager {
                 float espacioTexto = ImGui::CalcTextSize("Filtro Activo: ").x + ImGui::GetStyle().ItemSpacing.x;
                 float posYTecho = ImGui::GetCursorPosY(); //Posicion para despues
 
+
                 ImGui::Text("Filtro Activo:");
+
 
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
 
@@ -979,9 +1046,7 @@ namespace UIManager {
                     memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
                     memset(filtroIPDestino, 0, sizeof(filtroIPDestino));
                     memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
-                    ipExactaGlobal = false;
                 }
-
                 ImGui::Spacing();
             }
 
@@ -995,6 +1060,36 @@ namespace UIManager {
 
             //Se hace la función de filtrado y se almacena en una copia, si se aplican filtros solo contendra esos elementos, si no contendra to_do
             std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal,etiquetaSearch,etiquetaSearchSrc,etiquetaSearchDest);
+
+            //Si se desea buscar
+            int idEnCaja=0;
+            if (buscar) {
+                ImGui::SetNextItemWidth(100.0f);
+                ImGui::Text("Búsqueda de paquete:");
+                ImGui::SameLine();
+
+                idEnCaja = std::atoi(filtroID);
+
+                if (ImGui::InputTextWithHint("##filtro_id", "Buscar por ID", filtroID, sizeof(filtroID))) {
+                    int idBuscado = std::atoi(filtroID);
+                    bool encontrado = false;
+                    //buscamos el número de índice en la lista
+                    for (const auto& pkt : paquetesFiltrados) {
+                        if (pkt.id == idBuscado) {
+                            selectedPacketIndex = pkt.id;
+                            requestScrollToSelection = true;
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                    if (!encontrado) selectedPacketIndex = -1;
+                }
+                ImGui::SameLine();
+                //Boton de eliminar
+                if (ImGui::Button("X##cancel_busqueda")) {
+                    CancelarBusqueda();
+                }
+            }
 
             if (requestExportCSV) {
                std::string ruta = AbriDialogoGuardaCSV();
