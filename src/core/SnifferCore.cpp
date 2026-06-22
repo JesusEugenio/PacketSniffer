@@ -290,7 +290,8 @@ namespace SnifferCore {
                     pasaFiltro = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
                     break;
                 }
-                case 5: { //Combinacion
+                case 5: {
+                    //Combinacion
                     std::string bIP(filtroIP), bOrig(filtroOrigen), bDest(filtroDestino), bProt(filtroProtocolo);
 
                     //Si no manda nada entonces esa digamos que ya es verdadero para no evaluarla

@@ -58,10 +58,7 @@ namespace PacketParser {
     // Función principal que recibe la memoria cruda del paquete y la convierte a nuestra estructura limpia
     PacketData ParseRawPacket(const struct pcap_pkthdr* packetHeader, const u_char* rawBytes, int linkHeaderLength, const struct timeval& firstPacketTime) {
         PacketData data;
-        {
-            std::lock_guard<std::mutex> lock(id_mutex);
-            data.id = global_packet_id++;
-        }
+
         data.length = packetHeader->len; // Copiamos el tamaño total que tuvo el paquete al viajar por el cable
         data.rawBytes.assign(rawBytes, rawBytes + packetHeader->caplen); // Guardamos un clon de los bytes originales para el visor hexadecimal (en UIManager)
 
@@ -98,6 +95,11 @@ namespace PacketParser {
         // ">>" desplaza los bits del tamaño de la cabecera para solo leer el tipo de version IP
         if ((ip->versionAndHeader >> 4) != 4) { 
             return data; // Si es otra versión (como IPv6) devolvemos vacío para descartarlo
+        }
+
+        {   //Una vez sean solo los paquetes deseados incremetamos el ID
+            std::lock_guard<std::mutex> lock(id_mutex);
+            data.id = global_packet_id++;
         }
         
         data.source = inet_ntoa(ip->sourceIp);      // Convertimos la IP binaria de origen a texto normal (ej. 192.168.1.1)
