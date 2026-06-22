@@ -117,6 +117,9 @@ namespace PacketParser {
             
             int sport = ntohs(tcp->sourcePort);  // Volteamos los bytes del puerto origen para que la PC los lea bien
             int dport = ntohs(tcp->destPort);    // Volteamos los bytes del puerto destino
+
+            data.srcPort = sport;
+            data.dstPort = dport;
             
             // Calculamos los datos trae el paquete restando todos los encabezados
             int payloadSize = ntohs(ip->totalLength) - headerLengthIp - ((tcp->dataOffset >> 4) * 4); 
@@ -155,6 +158,9 @@ namespace PacketParser {
             UdpHeader* udp = (UdpHeader*)transportPayload;   // Casteamos hacia UDP
             int sport = ntohs(udp->sourcePort);     // Acomodamos bytes del puerto origen
             int dport = ntohs(udp->destPort);       // Acomodamos bytes del puerto destino
+
+            data.srcPort = sport;
+            data.dstPort = dport;
             
             std::string service = GetServiceName(sport, dport, known_udp_ports); // Buscamos si es un servicio conocido
             

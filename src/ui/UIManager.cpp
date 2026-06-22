@@ -30,6 +30,8 @@ namespace UIManager {
 
     static bool requestExportCSV = false;
     static bool requestExportXLSX = false;
+    static bool mostrarPuertos = false; // Controla si se dibujan las columnas de puertos
+
     // Fuente tipografica
     ImFont* fontBold = nullptr;
     ImFont* fontMedium = nullptr;
@@ -41,6 +43,8 @@ namespace UIManager {
     static char filtroIPDestino[64] = "";
     static char filtroProtocolo[64] = "";
     static char textoFiltro[64] = "";       //buffer para el filtro
+    static char filtroPuertoOrigen[16] = "";
+    static char filtroPuertoDestino[16] = "";
     static bool ipExactaGlobal=false;
     static bool etiquetaSearch=false;
     static bool etiquetaSearchSrc=false;
@@ -445,6 +449,14 @@ namespace UIManager {
                     tipoFiltroActivo = 4;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
+                if (ImGui::MenuItem("Puerto Origen")) {
+                    tipoFiltroActivo = 6;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
+                if (ImGui::MenuItem("Puerto Destino")) {
+                    tipoFiltroActivo = 7;
+                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                }
                 if (ImGui::MenuItem("Combinado")) {
                     etiquetaSearchSrc=false;
                     etiquetaSearchDest=false;
@@ -455,12 +467,21 @@ namespace UIManager {
                     memset(filtroIP, 0, sizeof(filtroIP));
                     memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
                     memset(filtroIPDestino, 0, sizeof(filtroIPDestino));
+                    memset(filtroPuertoOrigen, 0, sizeof(filtroPuertoOrigen));
+                    memset(filtroPuertoDestino, 0, sizeof(filtroPuertoDestino));
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Eliminar Filtros")) {
                     tipoFiltroActivo = 0;
                 }
                 ImGui::EndMenu();       //pa cerrar el menú
+            }
+            //--------- VISTA ------------
+            if (ImGui::BeginMenu("Vista")) {
+                viewWindowTag = false;
+                // Al pasarle &mostrarPuertos, ImGui crea un checkbox automáticamente
+                ImGui::MenuItem("Mostrar columnas de Puertos", NULL, &mostrarPuertos); 
+                ImGui::EndMenu();
             }
             // -------- BUSQUEDA -------------
             if (ImGui::BeginMenu("Búsqueda")) {
@@ -594,8 +615,11 @@ namespace UIManager {
 
         // Crea una región desplazable e independiente del resto de la ventana
         if (ImGui::BeginChild("Tabla", ImVec2(0, tableHeight), true)) {
+            // Calculamos las columnas dinamicamente
+            int numeroColumnas = mostrarPuertos ? 9 : 7;
+
             // Crea una tabla de 7 columnas con bordes y  filas alternadas 
-            if (ImGui::BeginTable("paquetes", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            if (ImGui::BeginTable("paquetes", numeroColumnas, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
                 
                 // Definimos el ancho fijo de cada columna en píxeles
                 ImGui::TableSetupColumn("No.", ImGuiTableColumnFlags_WidthFixed, 65.0f);
@@ -604,6 +628,10 @@ namespace UIManager {
                 ImGui::TableSetupColumn("Destination", ImGuiTableColumnFlags_WidthFixed, 200.0f);
                 ImGui::TableSetupColumn("Protocol", ImGuiTableColumnFlags_WidthFixed, 70.0f);
                 ImGui::TableSetupColumn("Length", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                if (mostrarPuertos) {
+                    ImGui::TableSetupColumn("Src Port", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+                    ImGui::TableSetupColumn("Dst Port", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+                }
                 ImGui::TableSetupColumn("Info", ImGuiTableColumnFlags_WidthStretch); // Esta columna se expande para llenar el espacio restante
                 ImGui::TableHeadersRow(); // Dibujamos la configuracion anterior
 
@@ -697,6 +725,15 @@ namespace UIManager {
 
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.protocol.c_str());
                         ImGui::TableNextColumn(); ImGui::Text("%d", pkt.length); 
+                        if (mostrarPuertos) {
+                            ImGui::TableNextColumn(); 
+                            if (pkt.srcPort != -1) ImGui::Text("%d", pkt.srcPort); // Solo dibuja si es TCP/UDP
+                            else ImGui::Text("-"); // Guion para paquetes ICMP/IGMP que no tienen puerto
+
+                            ImGui::TableNextColumn(); 
+                            if (pkt.dstPort != -1) ImGui::Text("%d", pkt.dstPort);
+                            else ImGui::Text("-");
+                        }
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.info.c_str());
 
                         if (isSelected) ImGui::PopStyleColor(); // Quita el color blanco del texto (solo aplica a la fila seleccionada)
@@ -930,7 +967,6 @@ namespace UIManager {
                 };
 
                 if (tipoFiltroActivo == 5) {
-                    //posiblemente 4 filtros
                     //IP GLOBAL
                     ImGui::SameLine();
                     ImGui::BeginGroup();
@@ -969,6 +1005,27 @@ namespace UIManager {
                     RenderInputFiltro("##filtro_protocolo", "Protocolo...", filtroProtocolo, sizeof(filtroProtocolo));
                     ImGui::EndGroup();
 
+                    //PUERTO ORIGEN
+                    ImGui::SameLine(0.0f, 20.0f);
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_port_orig", "Puerto Orig...", filtroPuertoOrigen, sizeof(filtroPuertoOrigen));
+                    ImGui::EndGroup();
+
+                    //PUERTO DESTINO
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                    RenderInputFiltro("##filtro_port_dest", "Puerto Dest...", filtroPuertoDestino, sizeof(filtroPuertoDestino));
+                    ImGui::EndGroup();
+                }
+                if (tipoFiltroActivo == 6) {
+                    std::string placeholder = "Buscar Puerto Origen...";
+                    ImGui::SameLine();
+                    RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                }
+                if (tipoFiltroActivo == 7) {
+                    std::string placeholder = "Buscar Puerto Destino...";
+                    ImGui::SameLine();
+                    RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
                 }
                 else {
                     std::string placeholder = "Buscar ";        //placehoilder, las letras que se ven cuando no hay texto en la caja
@@ -1046,6 +1103,8 @@ namespace UIManager {
                     memset(filtroIPOrigen, 0, sizeof(filtroIPOrigen));
                     memset(filtroIPDestino, 0, sizeof(filtroIPDestino));
                     memset(filtroProtocolo, 0, sizeof(filtroProtocolo));
+                    memset(filtroPuertoOrigen, 0, sizeof(filtroPuertoOrigen));
+                    memset(filtroPuertoDestino, 0, sizeof(filtroPuertoDestino));
                 }
                 ImGui::Spacing();
             }
@@ -1059,7 +1118,21 @@ namespace UIManager {
             const auto& packets = SnifferCore::GetCapturedPackets(); // Obtiene la lista completa de paquetes capturados
 
             //Se hace la función de filtrado y se almacena en una copia, si se aplican filtros solo contendra esos elementos, si no contendra to_do
-            std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(packets, tipoFiltroActivo, textoFiltro, filtroIP, filtroIPOrigen, filtroIPDestino, filtroProtocolo,ipExactaGlobal,etiquetaSearch,etiquetaSearchSrc,etiquetaSearchDest);
+            std::vector<PacketData> paquetesFiltrados = SnifferCore::FiltrarPaquetes(
+                packets, 
+                tipoFiltroActivo, 
+                textoFiltro, 
+                filtroIP, 
+                filtroIPOrigen, 
+                filtroIPDestino, 
+                filtroProtocolo, 
+                filtroPuertoOrigen,  
+                filtroPuertoDestino, 
+                ipExactaGlobal, 
+                etiquetaSearch, 
+                etiquetaSearchSrc, 
+                etiquetaSearchDest
+            );
 
             //Si se desea buscar
             int idEnCaja=0;
