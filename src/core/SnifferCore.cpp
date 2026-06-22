@@ -405,7 +405,7 @@ namespace SnifferCore {
             return false; // Error al abrir el archivo
         }
 
-        file << "ID,Time,Source,Destination,Protocol,Length,Info,MAC Source,MAC Destination\n";
+        file << "ID,Time,Source,Destination,Protocol,Length,Src Port,Dst Port,Info,MAC Source,MAC Destination\n";
         for (const auto& pkt : packets) {
             file << pkt.id << ","
                  << pkt.time << ","
@@ -413,6 +413,8 @@ namespace SnifferCore {
                  << pkt.destination << ","
                  << pkt.protocol << ","
                  << pkt.length << ","
+                 << pkt.srcPort << ","
+                 << pkt.dstPort << ","
                  << pkt.info << ","
                  << pkt.macSource << ","
                  << pkt.macDest << "\n";
@@ -436,15 +438,17 @@ namespace SnifferCore {
         worksheet_write_string(worksheet, 0, 3, "Destination", header_format);
         worksheet_write_string(worksheet, 0, 4, "Protocol", header_format);
         worksheet_write_string(worksheet, 0, 5, "Length", header_format);
-        worksheet_write_string(worksheet, 0, 6, "Info", header_format);
-        worksheet_write_string(worksheet, 0, 7, "MAC Source", header_format);
-        worksheet_write_string(worksheet, 0, 8, "MAC Destination", header_format);
+        worksheet_write_string(worksheet, 0, 6, "Src Port", header_format);
+        worksheet_write_string(worksheet, 0, 7, "Dst Port", header_format);
+        worksheet_write_string(worksheet, 0, 8, "Info", header_format);
+        worksheet_write_string(worksheet, 0, 9, "MAC Source", header_format);
+        worksheet_write_string(worksheet, 0, 10, "MAC Destination", header_format);
 
         // Ensanchamos las columnas para que la información quepa bien
         worksheet_set_column(worksheet, 1, 1, 15, NULL); // Columna de Tiempo
         worksheet_set_column(worksheet, 2, 3, 20, NULL); // IPs origen y destino
-        worksheet_set_column(worksheet, 6, 6, 50, NULL); // Columna Info (muy ancha)
-        worksheet_set_column(worksheet, 7, 8, 20, NULL); // Columnas MAC
+        worksheet_set_column(worksheet, 8, 8, 60, NULL); // Columna Info (muy ancha)
+        worksheet_set_column(worksheet, 9, 10, 30, NULL); // Columnas MAC
 
         int row = 1;
         for (const auto& pkt : packets) {
@@ -454,9 +458,11 @@ namespace SnifferCore {
             worksheet_write_string(worksheet, row, 3, pkt.destination.c_str(), NULL);
             worksheet_write_string(worksheet, row, 4, pkt.protocol.c_str(), NULL);
             worksheet_write_number(worksheet, row, 5, pkt.length, NULL);
-            worksheet_write_string(worksheet, row, 6, pkt.info.c_str(), NULL);
-            worksheet_write_string(worksheet, row, 7, pkt.macSource.c_str(), NULL);
-            worksheet_write_string(worksheet, row, 8, pkt.macDest.c_str(), NULL);
+            worksheet_write_number(worksheet, row, 6, pkt.srcPort, NULL);
+            worksheet_write_number(worksheet, row, 7, pkt.dstPort, NULL);
+            worksheet_write_string(worksheet, row, 8, pkt.info.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 9, pkt.macSource.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 10, pkt.macDest.c_str(), NULL);
             row++;
         }
 
