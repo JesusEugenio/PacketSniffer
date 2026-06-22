@@ -301,31 +301,48 @@ namespace SnifferCore {
                     bool convDest = CoincideIpOEtiqueta(pkt.destination, bDest, etiquetaDest, true);
                     bool convProt = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
 
-                    // Logica de Puertos Origen en Combinado
-                    bool convPortOrig = true;
-                    if (std::string(filtroPuertoOrig).length() > 0) {
-                        convPortOrig = (pkt.srcPort != -1 && pkt.srcPort == std::stoi(filtroPuertoOrig));
-                    }
+                    // Logica de Puertos Origen/Destino en Combinado
+                    auto EsPuertoValido = [](const char* filtro, int puertoPkt) -> bool {
+                        if (filtro[0] == '\0') return true; //Si está vacío, no filtra
 
-                    // Logica de Puertos Destino en Combinado
-                    bool convPortDest = true;
-                    if (std::string(filtroPuertoDest).length() > 0) {
-                        convPortDest = (pkt.dstPort != -1 && pkt.dstPort == std::stoi(filtroPuertoDest));
-                    }
+                        // Verificamos que sea numérico para evitar errores
+                        for (int i = 0; filtro[i] != '\0'; ++i) {
+                            if (!isdigit(filtro[i])) return false;
+                        }
+
+                        return (puertoPkt != -1 && puertoPkt == std::atoi(filtro));
+                    };
+
+                    bool convPortOrig = EsPuertoValido(filtroPuertoOrig, pkt.srcPort);
+                    bool convPortDest = EsPuertoValido(filtroPuertoDest, pkt.dstPort);
 
                     // Solo paquetes con todas las coincidencias se muestran
                     pasaFiltro = (convIP && convOrig && convDest && convProt && convPortOrig && convPortDest);
                     break;
                 }
-                case 6: { // Puerto Origen
-                    if (pkt.srcPort != -1 && std::string(textoFiltro).length() > 0) {
-                        pasaFiltro = (pkt.srcPort == std::stoi(textoFiltro));
+                case 6:{ // Puerto Origen
+                    if (textoFiltro[0] == '\0') {
+                        pasaFiltro = true; // Si está vacío, no filtra nada
+                    } else {
+                        // Validar que sea numérico antes de convertir
+                        bool esNumerico = true;
+                        for (int i = 0; textoFiltro[i] != '\0'; ++i) {
+                            if (!isdigit(textoFiltro[i])) esNumerico = false;
+                        }
+                        pasaFiltro = esNumerico && (pkt.srcPort != -1 && pkt.srcPort == std::atoi(textoFiltro));
                     }
                     break;
                 }
-                case 7: { // Puerto Destino
-                    if (pkt.dstPort != -1 && std::string(textoFiltro).length() > 0) {
-                        pasaFiltro = (pkt.dstPort == std::stoi(textoFiltro));
+                case 7:{ // Puerto destino
+                    if (textoFiltro[0] == '\0') {
+                        pasaFiltro = true; // Si está vacío, no filtra nada
+                    } else {
+                        // Validar que sea numérico antes de convertir
+                        bool esNumerico = true;
+                        for (int i = 0; textoFiltro[i] != '\0'; ++i) {
+                            if (!isdigit(textoFiltro[i])) esNumerico = false;
+                        }
+                        pasaFiltro = esNumerico && (pkt.dstPort != -1 && pkt.dstPort == std::atoi(textoFiltro));
                     }
                     break;
                 }

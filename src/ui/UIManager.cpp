@@ -449,6 +449,7 @@ namespace UIManager {
                     tipoFiltroActivo = 4;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
+                ImGui::Separator();
                 if (ImGui::MenuItem("Puerto Origen")) {
                     tipoFiltroActivo = 6;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
@@ -457,6 +458,7 @@ namespace UIManager {
                     tipoFiltroActivo = 7;
                     memset(textoFiltro, 0, sizeof(textoFiltro));
                 }
+                ImGui::Separator();
                 if (ImGui::MenuItem("Combinado")) {
                     etiquetaSearchSrc=false;
                     etiquetaSearchDest=false;
@@ -478,9 +480,8 @@ namespace UIManager {
             }
             //--------- VISTA ------------
             if (ImGui::BeginMenu("Vista")) {
-                viewWindowTag = false;
                 // Al pasarle &mostrarPuertos, ImGui crea un checkbox automáticamente
-                ImGui::MenuItem("Mostrar columnas de Puertos", NULL, &mostrarPuertos); 
+                ImGui::MenuItem("Mostrar columnas de Puertos", NULL, &mostrarPuertos);
                 ImGui::EndMenu();
             }
             // -------- BUSQUEDA -------------
@@ -1006,26 +1007,16 @@ namespace UIManager {
                     ImGui::EndGroup();
 
                     //PUERTO ORIGEN
-                    ImGui::SameLine(0.0f, 20.0f);
+                    ImGui::SetCursorPosX(ImGui::GetStyle().WindowPadding.x + espacioTexto);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_port_orig", "Puerto Orig...", filtroPuertoOrigen, sizeof(filtroPuertoOrigen));
                     ImGui::EndGroup();
 
                     //PUERTO DESTINO
-                    ImGui::SameLine();
+                    ImGui::SameLine(0.0f,183.0f);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_port_dest", "Puerto Dest...", filtroPuertoDestino, sizeof(filtroPuertoDestino));
                     ImGui::EndGroup();
-                }
-                if (tipoFiltroActivo == 6) {
-                    std::string placeholder = "Buscar Puerto Origen...";
-                    ImGui::SameLine();
-                    RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
-                }
-                if (tipoFiltroActivo == 7) {
-                    std::string placeholder = "Buscar Puerto Destino...";
-                    ImGui::SameLine();
-                    RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
                 }
                 else {
                     std::string placeholder = "Buscar ";        //placehoilder, las letras que se ven cuando no hay texto en la caja
@@ -1057,6 +1048,16 @@ namespace UIManager {
                         }
                         if (tipoFiltroActivo == 4) {
                             placeholder += "Protocolo...";
+                            ImGui::SameLine();
+                            RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                        }
+                        if (tipoFiltroActivo == 6) {
+                            std::string placeholder = "Buscar Puerto Origen...";
+                            ImGui::SameLine();
+                            RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
+                        }
+                        if (tipoFiltroActivo == 7) {
+                            std::string placeholder = "Buscar Puerto Destino...";
                             ImGui::SameLine();
                             RenderInputFiltro("##filtro_input", placeholder.c_str(), textoFiltro, sizeof(textoFiltro));
                         }
@@ -1135,13 +1136,11 @@ namespace UIManager {
             );
 
             //Si se desea buscar
-            int idEnCaja=0;
             if (buscar) {
+                ImGui::SameLine();
                 ImGui::SetNextItemWidth(100.0f);
                 ImGui::Text("Búsqueda de paquete:");
                 ImGui::SameLine();
-
-                idEnCaja = std::atoi(filtroID);
 
                 if (ImGui::InputTextWithHint("##filtro_id", "Buscar por ID", filtroID, sizeof(filtroID))) {
                     int idBuscado = std::atoi(filtroID);
