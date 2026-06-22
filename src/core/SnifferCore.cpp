@@ -424,10 +424,23 @@ namespace SnifferCore {
 
         file << "ID,Time,Source,Destination,Protocol,Length,Src Port,Dst Port,Info,MAC Source,MAC Destination\n";
         for (const auto& pkt : packets) {
+            // ----- Etiquetas -----
+            Tag srcTag;
+            std::string sourceField = pkt.source;
+            if (getTag(pkt.source, srcTag)) {
+                sourceField += " (" + srcTag.name + ")";
+            }
+
+            Tag destTag;
+            std::string destField = pkt.destination;
+            if (getTag(pkt.destination, destTag)) {
+                destField += " (" + destTag.name + ")";
+            }
+            //---------------------
             file << pkt.id << ","
                  << pkt.time << ","
-                 << pkt.source << ","
-                 << pkt.destination << ","
+                 << sourceField << ","
+                 << destField   << ","
                  << pkt.protocol << ","
                  << pkt.length << ","
                  << pkt.srcPort << ","
@@ -469,14 +482,31 @@ namespace SnifferCore {
 
         int row = 1;
         for (const auto& pkt : packets) {
+            // ----- Etiquetas -----
+            Tag srcTag, destTag;
+
+            std::string sVal = pkt.source;
+            if (getTag(pkt.source, srcTag)) {
+                sVal += " (" + srcTag.name + ")";
+            }
+
+            std::string dVal = pkt.destination;
+            if (getTag(pkt.destination, destTag)) {
+                dVal += " (" + destTag.name + ")";
+            }
+            // ---------------------------------
+
             worksheet_write_number(worksheet, row, 0, pkt.id, NULL);
             worksheet_write_string(worksheet, row, 1, pkt.time.c_str(), NULL);
-            worksheet_write_string(worksheet, row, 2, pkt.source.c_str(), NULL);
-            worksheet_write_string(worksheet, row, 3, pkt.destination.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 2, sVal.c_str(), NULL);
+            worksheet_write_string(worksheet, row, 3, dVal.c_str(), NULL);
             worksheet_write_string(worksheet, row, 4, pkt.protocol.c_str(), NULL);
             worksheet_write_number(worksheet, row, 5, pkt.length, NULL);
-            worksheet_write_number(worksheet, row, 6, pkt.srcPort, NULL);
-            worksheet_write_number(worksheet, row, 7, pkt.dstPort, NULL);
+            if (pkt.srcPort != -1) worksheet_write_number(worksheet, row, 6, pkt.srcPort, NULL);
+            else worksheet_write_string(worksheet, row, 6, "-", NULL);
+
+            if (pkt.dstPort != -1) worksheet_write_number(worksheet, row, 7, pkt.dstPort, NULL);
+            else worksheet_write_string(worksheet, row, 7, "-", NULL);
             worksheet_write_string(worksheet, row, 8, pkt.info.c_str(), NULL);
             worksheet_write_string(worksheet, row, 9, pkt.macSource.c_str(), NULL);
             worksheet_write_string(worksheet, row, 10, pkt.macDest.c_str(), NULL);
