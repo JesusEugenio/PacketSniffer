@@ -22,6 +22,20 @@
 std::vector<GLuint> splashFrames;
 const int TOTAL_FRAMES = 2;
 
+//Para la opción de ayuda
+struct TextureInfo {
+    GLuint id;
+    int width;
+    int height;
+};
+struct Slide {
+    TextureInfo tex; // Aquí guardas el ID, width y height
+    std::string descripcion;
+};
+
+std::vector<Slide> ayudaSlides; //Sera un carrusel de imagenes
+int slideActual = 0;
+
 namespace UIManager {
     // Variables Globales de Estado
     bool isShowingCaptureScreen = false;     // Está mostrando la tabla de paquetes o el menú inicial?
@@ -60,6 +74,9 @@ namespace UIManager {
     //para el reinicio de la captura
     static std::string currentInterfaceInternalName = "";
 
+    //Para ayuda
+    static bool isAyudaActive = false;
+
 
     // Funcion para traducir los nombres de los Protocolos
     std::string GetFullProtocolName(const std::string& shortName) {
@@ -72,6 +89,147 @@ namespace UIManager {
         if (shortName == "DHCP (Server)" || shortName == "DHCP (Client)") return "Dynamic Host Configuration Protocol";
         if (shortName == "BGP") return "Border Gateway Protocol";
         return shortName + " Application Data"; // Etiqueta genérica si el protocolo no es reconocido por el programa
+    }
+    //Ayuda
+
+    TextureInfo LoadTextureFromFile(const char* filename) {
+        int w, h, channels;
+        // Carga la imagen
+        unsigned char* data = stbi_load(filename, &w, &h, &channels, 4);
+
+        // Si falla, devuelve ceros
+        if (data == nullptr) return {0, 0, 0};
+
+        GLuint textureID;
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Usar LINEAR para mejor calidad al escalar
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
+
+        return {textureID, w, h};
+    }
+
+    void LoadAyudaResources() {//Se carga imagen con su descripción
+        const char* textos[] = {
+                "Indicador en pantalla de la interfaz actual.",
+                "Estado de la captura de paquetes (Capturando/Detenido).",
+                "Botón para detener la captura de paquetes.",
+                "Una vez detenida la captura, el botón permite regresar a la selección de interfaces.",
+                "Tabla de paquetes capturados.",
+                "Leyenda de colores para los paquetes.",
+                "Información detallada del paquete seleccionado.",
+                "Opción en la barra de herramientas para detener la captura.",
+                "Opción en la barra de herramientas para reiniciar la captura.",
+                "Opción en la barra de herramientas para regresar a la selección de interfaces.",
+                "Filtros disponibles en la barra de herramientas.",
+                "Algunos filtros permiten buscar coincidencias exactas o parciales; esto se activa o desactiva mediante su respectiva casilla de verificación.",
+                "Los filtros de IP pueden buscar coincidencias según la dirección IP o la etiqueta; esto se activa o desactiva con su respectiva casilla de verificación.",
+                "Los filtros pueden eliminarse mediante la barra de herramientas o el botón ubicado a un costado.",
+                "El apartado vista nos proporciona la opción para activar o desactivar la visualización de puertos en la tabla de paquetes.",
+                "El apartado de búsqueda permite localizar un paquete específico mediante su ID.",
+                "La búsqueda puede cancelarse desde la barra de herramientas o con el botón ubicado a un costado.",
+                "El apartado de etiquetas permite gestionarlas (se guardan automáticamente, por lo que el sniffer las recordará a menos que se eliminen manualmente).",
+                "En el apartado de etiquetas se habilita una ventana para asignar una etiqueta a una dirección IP.",
+                "Permite asignar un color mediante el selector de color.",
+                "Al pulsar el botón de editar en una etiqueta, la IP se colocará automáticamente en el campo de texto.",
+                "Para eliminar una etiqueta, basta con presionar su respectivo botón de eliminar.",
+                "Al exportar a .csv, se abrirá el explorador de archivos para guardar el archivo (se guardarán los datos que se muestren en la tabla).",
+                "Al exportar a .xlsx, se abrirá el explorador de archivos para guardar el archivo (se guardarán los datos que se muestren en la tabla)."
+        };
+
+        for (int i = 1; i <= 24; i++) {
+            std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";
+
+            TextureInfo info = LoadTextureFromFile(path.c_str());
+            if (info.id != 0) {
+                ayudaSlides.push_back({info, textos[i-1]});
+            } else {
+                printf("Error fatal: No se cargo %s\n", path.c_str());
+            }
+        }
+    }
+    //Función para escalar las imagenes
+    ImVec2 GetProportionalSize(float originalW, float originalH, float maxWidth, float maxHeight) {
+        float aspectRatio = originalW / originalH;
+        float newW = maxWidth;
+        float newH = maxWidth / aspectRatio;
+
+        //si la altura calculada excede el máximo permitido se ajustamos por la altura
+        if (newH > maxHeight) {
+            newH = maxHeight;
+            newW = maxHeight * aspectRatio;
+        }
+        return ImVec2(newW, newH);
+    }
+
+    void RenderVentanaAyuda() {
+        if (!isAyudaActive) return;
+
+        ImGui::SetNextWindowSize(ImVec2(700, 500), ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
+
+        if (ImGui::Begin("Ayuda del Sistema", &isAyudaActive, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
+            //Si el usuario cliquea fuera de la ventana entonces la desactiva
+            if (ImGui::IsMouseClicked(0) && !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+                isAyudaActive = false; // Cerramos la ventana automáticamente
+            }
+
+            if (!ayudaSlides.empty()) {
+                Slide& actual = ayudaSlides[slideActual];
+
+                //Mostrar el texto
+                ImGui::TextWrapped("%s", actual.descripcion.c_str());
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                //calcular espacio disponible para la imagen
+                ImVec2 availableSpace = ImGui::GetContentRegionAvail();
+                //Restamos espacio del texto de arriba, botones y márgenes
+                float maxH = availableSpace.y - 50.0f;
+                float maxW = availableSpace.x;
+
+                ImVec2 size = GetProportionalSize(actual.tex.width, actual.tex.height, maxW, maxH);
+
+                if (size.x > 0 && size.y > 0 && actual.tex.id != 0) {
+                    float windowWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+                    ImGui::SetCursorPosX((windowWidth - size.x) * 0.5f);
+                    ImGui::Image((void*)(intptr_t)actual.tex.id, size);
+                } else {
+                    ImGui::Text("Error: Textura invalida o tamaño cero.");
+                }
+                float footerHeight = 50.0f;
+                float windowHeight = ImGui::GetWindowSize().y;
+                ImGui::SetCursorPosY(windowHeight - footerHeight);
+
+                ImGui::Separator(); // Línea divisoria justo antes de los botones
+                ImGui::Spacing();
+
+                //Botones navegación
+                if (ImGui::Button("Anterior") && slideActual > 0) slideActual--;
+                ImGui::SameLine();
+
+                //contador de paginas
+                float windowWidth = ImGui::GetWindowSize().x;
+                float textWidth = ImGui::CalcTextSize("99 / 99").x;
+                ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+                ImGui::Text("%d / %d", slideActual + 1, (int)ayudaSlides.size());
+
+                ImGui::SameLine(windowWidth - 90.0f); // Pegado a la derecha
+                if (ImGui::Button("Siguiente") ) {
+                    if (slideActual < ayudaSlides.size() - 1) {
+                        slideActual++; // Avanza normal
+                    } else {
+                        slideActual = 0; //cicla al inicio
+                    }
+                }
+            }
+        }
+        ImGui::End();
+        ImGui::PopStyleColor();
     }
 
     // Mostrar datos de la capa de aplicación (Capa 7)
@@ -516,7 +674,7 @@ namespace UIManager {
             //--------- AYUDA ------------
             if (ImGui::BeginMenu("Ayuda")) {
                 if (ImGui::MenuItem("Indicaciones")) {
-                    //PENDIENTE
+                    isAyudaActive=true;
                 }
                 ImGui::EndMenu();
             }
@@ -956,7 +1114,11 @@ namespace UIManager {
             ImGui::Spacing();
             RenderToolbarTop();         //Barra de funciones
             RenderTagManagment();        //ventana de etiquetas
+            RenderVentanaAyuda();       //ventana ayuda
             RenderCaptureToolbar(); // Barra de operaciones
+
+
+
 
             //Si los filtros estan activos
             if (tipoFiltroActivo > 0) {
@@ -1149,7 +1311,7 @@ namespace UIManager {
 
             //Si se desea buscar
             if (buscar) {
-                ImGui::SameLine();
+                ImGui::Separator();
                 ImGui::SetNextItemWidth(100.0f);
                 ImGui::Text("Búsqueda de paquete:");
                 ImGui::SameLine();
@@ -1297,35 +1459,32 @@ namespace UIManager {
         ImGui::PopStyleColor();
     }
 
-    GLuint LoadTextureFromFile(const char* filename) {
-        int width, height, channels;
-        unsigned char* data = stbi_load(filename, &width, &height, &channels, 4);
-        if (data == nullptr) return 0;
-
-        GLuint textureID;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        stbi_image_free(data);
-
-        return textureID;
-    }
-
     void LoadSplashResources() {
         for (int i = 1; i <= TOTAL_FRAMES; i++) {
-            // Construye la ruta dinámicamente: assets/splash/frame_0.png, frame_1.png...
             std::string path = "assets/splash/frame" + std::to_string(i) + ".png";
 
-            GLuint tex = LoadTextureFromFile(path.c_str());
-            if (tex != 0) {
-                splashFrames.push_back(tex);
-            }else {
+            TextureInfo info = LoadTextureFromFile(path.c_str());
+
+            if (info.id != 0) {
+                // Solo guardamos el ID, ignorando las dimensiones
+                splashFrames.push_back(info.id);
+            } else {
                 printf("Error: No se pudo cargar la imagen en la ruta: %s\n", path.c_str());
             }
         }
+    }
+
+    void CleanupResources() {
+        // Liberar texturas de splash
+        for (GLuint tex : splashFrames) {
+            glDeleteTextures(1, &tex);
+        }
+        splashFrames.clear();
+
+        // Liberar texturas de ayuda
+        for (const auto& slide : ayudaSlides) {
+            glDeleteTextures(1, &slide.tex.id);
+        }
+        ayudaSlides.clear();
     }
 }

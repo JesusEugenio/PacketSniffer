@@ -16,4 +16,6 @@ namespace UIManager {
     void SetupColors();
     void RenderSplashScreen(float currentTimer, float totalDuration);
     void LoadSplashResources();
+    void LoadAyudaResources();
+    void CleanupResources();
 }
