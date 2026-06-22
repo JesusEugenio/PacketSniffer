@@ -45,6 +45,7 @@ int main() {
     glfwSetWindowPos(window, (mode->width - 450) / 2, (mode->height - 400) / 2);
 
     UIManager::LoadSplashResources();
+    UIManager::LoadAyudaResources();
     // -- Bonita pantalla de carga (por que no?) --
     bool isShowingSplashScreen = true;   // Inicia en la pantalla de carga
     float splashTimer = 0.0f;
@@ -109,6 +110,7 @@ int main() {
     }
 
     SnifferCore::StopCapture(); // Detiene el hilo de captura de red de forma ordenada
+    UIManager::CleanupResources(); //para vaciar las imagenes de ayuda y ventana de carga
     
     UIManager::ShutdownWindow(window); // Destruye y desocupa la memoria gráfica
 

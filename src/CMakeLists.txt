@@ -42,5 +42,4 @@ target_link_libraries(PacketSniffer PRIVATE
 )
 
 # Le decimos a CMake que copie la carpeta de fuentes justo al lado del .exe
-file(COPY "${CMAKE_SOURCE_DIR}/assets/fonts" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 file(COPY "${CMAKE_SOURCE_DIR}/assets" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
