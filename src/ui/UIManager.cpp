@@ -569,7 +569,7 @@ namespace UIManager {
                         const auto& pkt = packets[i];   // Obtiene el paquete correspondiente a esta fila
                         ImGui::TableNextRow();          // Avanza a la siguiente fila de la tabla
                         
-                        bool isSelected = (selectedPacketIndex == i); // Es esta la fila que el usuario seleccionó?
+                        bool isSelected = (selectedPacketIndex == pkt.id); // Es esta la fila que el usuario seleccionó?
                         
                         if (isSelected) { 
                             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Colores::VERDEMENTAGRISACEO); // Pinta el fondo
@@ -579,12 +579,12 @@ namespace UIManager {
                         ImGui::TableNextColumn();
                         char label[32]; // Búfer para procesar Los ID's gráficos
                         // Genera el texto de la celda de número: el "##" es invisible, pero ImGui lo necesita para identificar el elemento internamente
-                        snprintf(label, sizeof(label), "%d##%d", i + 1, i); 
+                        snprintf(label, sizeof(label), "%d##%d", pkt.id, i);
                         
                         // Hace toda la fila clickeable
                         if (ImGui::Selectable(label, isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) { 
                             if (SnifferCore::IsCapturing() == false) { // Solo permite seleccionar si la captura ya terminó
-                                selectedPacketIndex = i; // Guarda el índice del paquete seleccionado
+                                selectedPacketIndex = pkt.id; // Guarda el índice del paquete seleccionado
                             }
                         }
                         
@@ -653,117 +653,116 @@ namespace UIManager {
     // Se divide en dos columnas:
     //   - Izquierda: árbol jerárquico de las capas del paquete
     //   - Derecha: los bytes crudos del paquete en formato hexadecimal
-    void RenderPacketDetails(const std::vector<PacketData>& packets) {
-        // Solo dibuja si hay un paquete seleccionado y el índice es válido
-        if (selectedPacketIndex >= 0 && selectedPacketIndex < packets.size()) {
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));
-            const auto& sel_pkt = packets[selectedPacketIndex]; // El paquete seleccionado
-            const unsigned char* raw = sel_pkt.rawBytes.data(); // Puntero al inicio de los bytes crudos del paquete
-            size_t capSize = sel_pkt.rawBytes.size();           // Cantidad total de bytes capturados
-            
-            // Crea un panel dividido en 2 columnas
-            if (ImGui::BeginTable("bottom", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable)) {
-                ImGui::TableNextRow(); 
-                
-                // ---------------------------------------------------------------
-                // COLUMNA IZQUIERDA: Árbol de capas del modelo OSI
-                // Muestra la información descompuesta capa por capa 
-                // ---------------------------------------------------------------
-                ImGui::TableNextColumn();
-                if (ImGui::BeginChild("Arbol", ImVec2(0,0), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar)) { 
-                    
-                    // --- CAPA 1: Frame (información física de la captura) ---
-                    // Muestra el número de frame y su tamaño total
-                    if (ImGui::TreeNode(std::string("Frame " + std::to_string(selectedPacketIndex + 1) + ": " + std::to_string(sel_pkt.length) + " bytes on wire").c_str())) { // Abre la capa física
-                        ImGui::Text("Arrival Time: %s", sel_pkt.time.c_str()); // Hora exacta en que llego el paquete
-                        ImGui::Text("Frame Length: %d bytes", sel_pkt.length); // Tamaño total del paquete en bytes
+    void RenderPacketDetails(const PacketData* sel_pkt) {
+        if (sel_pkt == nullptr) return;
+        // Solo dibuja si un paquete esta seleccionado
+
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));
+        const unsigned char* raw = sel_pkt->rawBytes.data();
+        size_t capSize = sel_pkt->rawBytes.size();
+
+        // Crea un panel dividido en 2 columnas
+        if (ImGui::BeginTable("bottom", 2, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable)) {
+            ImGui::TableNextRow();
+
+            // ---------------------------------------------------------------
+            // COLUMNA IZQUIERDA: Árbol de capas del modelo OSI
+            // Muestra la información descompuesta capa por capa
+            // ---------------------------------------------------------------
+            ImGui::TableNextColumn();
+            if (ImGui::BeginChild("Arbol", ImVec2(0,0), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar)) {
+
+                // --- CAPA 1: Frame (información física de la captura) ---
+                // Muestra el número de frame y su tamaño total
+                if (ImGui::TreeNode(std::string("Frame " + std::to_string(sel_pkt->id) + ": " + std::to_string(sel_pkt->length) + " bytes on wire").c_str())) { // Abre la capa física
+                    ImGui::Text("Arrival Time: %s", sel_pkt->time.c_str()); // Hora exacta en que llego el paquete
+                    ImGui::Text("Frame Length: %d bytes", sel_pkt->length); // Tamaño total del paquete en bytes
+                    ImGui::TreePop();
+                }
+
+                // --- CAPA 2: Ethernet (direcciones MAC de hardware) ---
+                // Solo se muestra si hay direcciones MAC válidas (no aplica para túneles VPN)
+                if (sel_pkt->macSource != "N/A" && capSize >= 14) {
+                    if (ImGui::TreeNode(std::string("Ethernet II, Src: " + sel_pkt->macSource + ", Dst: " + sel_pkt->macDest).c_str())) { // Abre capa de enlace
+                        ImGui::Text("Destination: %s", sel_pkt->macDest.c_str());    // MAC del dispositivo destino
+                        ImGui::Text("Source: %s", sel_pkt->macSource.c_str());       // MAC del dispositivo origen
                         ImGui::TreePop();
                     }
-                    
-                    // --- CAPA 2: Ethernet (direcciones MAC de hardware) ---
-                    // Solo se muestra si hay direcciones MAC válidas (no aplica para túneles VPN)
-                    if (sel_pkt.macSource != "N/A" && capSize >= 14) {
-                        if (ImGui::TreeNode(std::string("Ethernet II, Src: " + sel_pkt.macSource + ", Dst: " + sel_pkt.macDest).c_str())) { // Abre capa de enlace
-                            ImGui::Text("Destination: %s", sel_pkt.macDest.c_str());    // MAC del dispositivo destino
-                            ImGui::Text("Source: %s", sel_pkt.macSource.c_str());       // MAC del dispositivo origen
+                }
+
+                // --- CAPA 3: IPv4 (direcciones IP) ---
+                // Salta los primeros 14 bytes (la cabecera Ethernet) para leer el encabezado IP
+                if (capSize > 14) { // Verifica que el tamaño del paquete sea mayor a 14 bytes (la cabecera física de Ethernet II mide eso)
+                    IpHeader* ip = (IpHeader*)(raw + 14); // Saltamos la cabecera de Ethernet
+
+                    // Verifica que la versión del protocolo es realmente IPv4
+                    if ((ip->versionAndHeader >> 4) == 4) {
+                        // Calcular el tamaño real exacto (en bytes) que mide la cabecera del protocolo IPv4
+                        int ipHeaderLen = (ip->versionAndHeader & 0x0f) * 4;
+                        int ipTotalLen = ntohs(ip->totalLength);
+
+                        // Abre capa de red
+                        if (ImGui::TreeNode(std::string("Internet Protocol Version 4, Src: " + sel_pkt->source + ", Dst: " + sel_pkt->destination).c_str())) {
+                            ImGui::Text("Version: %d", (ip->versionAndHeader >> 4));
+                            ImGui::Text("Header Length: %d bytes", ipHeaderLen);                    // Tamaño de la cabecera IP
+                            ImGui::Text("Total Length: %d", ipTotalLen);                            // Tamaño total del paquete
+                            ImGui::Text("Identification: 0x%04x (%d)", ntohs(ip->identification),   // ID del paquete (se usa para reensamblar fragmentos)
+                                ntohs(ip->identification));
+                            ImGui::Text("Time to Live: %d", ip->timeToLive);                        // Número máximo de saltos permitidos antes de descartar el paquete
+                            ImGui::Text("Protocol: %d", ip->protocol);                              // Número que indica qué protocolo viene después (6=TCP, 17=UDP, 1=ICMP, 2=IGMP)
                             ImGui::TreePop();
                         }
-                    }
-                    
-                    // --- CAPA 3: IPv4 (direcciones IP) ---
-                    // Salta los primeros 14 bytes (la cabecera Ethernet) para leer el encabezado IP
-                    if (capSize > 14) { // Verifica que el tamaño del paquete sea mayor a 14 bytes (la cabecera física de Ethernet II mide eso)
-                        IpHeader* ip = (IpHeader*)(raw + 14); // Saltamos la cabecera de Ethernet
-                        
-                        // Verifica que la versión del protocolo es realmente IPv4
-                        if ((ip->versionAndHeader >> 4) == 4) {
-                            // Calcular el tamaño real exacto (en bytes) que mide la cabecera del protocolo IPv4
-                            int ipHeaderLen = (ip->versionAndHeader & 0x0f) * 4; 
-                            int ipTotalLen = ntohs(ip->totalLength); 
-                            
-                            // Abre capa de red
-                            if (ImGui::TreeNode(std::string("Internet Protocol Version 4, Src: " + sel_pkt.source + ", Dst: " + sel_pkt.destination).c_str())) { 
-                                ImGui::Text("Version: %d", (ip->versionAndHeader >> 4)); 
-                                ImGui::Text("Header Length: %d bytes", ipHeaderLen);                    // Tamaño de la cabecera IP
-                                ImGui::Text("Total Length: %d", ipTotalLen);                            // Tamaño total del paquete
-                                ImGui::Text("Identification: 0x%04x (%d)", ntohs(ip->identification),   // ID del paquete (se usa para reensamblar fragmentos)
-                                    ntohs(ip->identification));                                         
-                                ImGui::Text("Time to Live: %d", ip->timeToLive);                        // Número máximo de saltos permitidos antes de descartar el paquete
-                                ImGui::Text("Protocol: %d", ip->protocol);                              // Número que indica qué protocolo viene después (6=TCP, 17=UDP, 1=ICMP, 2=IGMP)
-                                ImGui::TreePop();
-                            }
-                            
-                            // Calcula dónde empieza el protocolo de transporte:
-                            // 14 bytes de Ethernet + tamaño variable de cabecera IP
-                            int transportOffset = 14 + ipHeaderLen;
-                            
-                            // Dibujamos info del protocolo correspondiente
-                            if (ip->protocol == 6) DrawTCP(raw, transportOffset, capSize, ipTotalLen, ipHeaderLen, sel_pkt.protocol);
-                            else if (ip->protocol == 17) DrawUDP(raw, transportOffset, capSize, sel_pkt.protocol);
-                            else if (ip->protocol == 1) DrawICMP(raw, transportOffset, capSize);
-                            else if (ip->protocol == 2) DrawIGMP(raw, transportOffset, capSize);
-                        }
-                    }
-                }
-                ImGui::EndChild(); // Fin de columna del árbol
 
-                // ---------------------------------------------------------------
-                // COLUMNA DERECHA: Hex Dump (los bytes crudos del paquete)
-                // Muestra los datos en dos formatos: hexadecimal y ASCII
-                // ---------------------------------------------------------------
-                ImGui::TableNextColumn(); // Pasa el cursor a la columna dos
-                if (ImGui::BeginChild("Hex", ImVec2(0,0), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar)) {
-                    
-                    // Recorre el paquete de 16 bytes en 16 bytes (cada línea muestra 16 bytes)
-                    for (size_t i = 0; i < capSize; i += 16) { 
-                        
-                        ImGui::Text("%04zx  ", i); // Muestra la posición actual en hexadecimal (offset): 0000, 0010, 0020...
-                        ImGui::SameLine();
-                        
-                        // Sub-bucle A: Muestra los 16 bytes en formato hexadecimal (00 a FF)
-                        for (size_t j = 0; j < 16; j++) { 
-                            if (i + j < capSize) ImGui::Text("%02x ", raw[i+j]); // Byte en hex con formato de 2 dígitos
-                            else ImGui::Text("   "); // Si el paquete se acabó a la mitad del bloque, imprime espacios vacíos para sostener la estética
-                            ImGui::SameLine();
-                        }
-                        
-                        ImGui::Text("  "); ImGui::SameLine(); // Espacio visual entre la columna hex y la columna ASCII
-                        
-                        // Sub-bucle B: Muestra los mismos bytes como caracteres ASCII 
-                        for (size_t j = 0; j < 16 && (i + j) < capSize; j++) { 
-                            char c = raw[i+j]; // Copia el byte crudo
-                            if (c >= 32 && c <= 126) ImGui::Text("%c", c);  // Imprime únicamente si es una letra humana válida
-                            else ImGui::Text(".");                          // Si es un carácter de control o especial, muestra un punto
-                            ImGui::SameLine(0, 0);                          // Fuerza espaciado nulo entre letras
-                        }
-                        ImGui::NewLine(); // Termina la línea actual y pasa a la siguiente
+                        // Calcula dónde empieza el protocolo de transporte:
+                        // 14 bytes de Ethernet + tamaño variable de cabecera IP
+                        int transportOffset = 14 + ipHeaderLen;
+
+                        // Dibujamos info del protocolo correspondiente
+                        if (ip->protocol == 6) DrawTCP(raw, transportOffset, capSize, ipTotalLen, ipHeaderLen, sel_pkt->protocol);
+                        else if (ip->protocol == 17) DrawUDP(raw, transportOffset, capSize, sel_pkt->protocol);
+                        else if (ip->protocol == 1) DrawICMP(raw, transportOffset, capSize);
+                        else if (ip->protocol == 2) DrawIGMP(raw, transportOffset, capSize);
                     }
                 }
-                ImGui::EndChild(); // Fin de columna hexadecimal
-                ImGui::EndTable(); // Fin tabla
             }
-            ImGui::PopStyleColor();
+            ImGui::EndChild(); // Fin de columna del árbol
+
+            // ---------------------------------------------------------------
+            // COLUMNA DERECHA: Hex Dump (los bytes crudos del paquete)
+            // Muestra los datos en dos formatos: hexadecimal y ASCII
+            // ---------------------------------------------------------------
+            ImGui::TableNextColumn(); // Pasa el cursor a la columna dos
+            if (ImGui::BeginChild("Hex", ImVec2(0,0), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar)) {
+
+                // Recorre el paquete de 16 bytes en 16 bytes (cada línea muestra 16 bytes)
+                for (size_t i = 0; i < capSize; i += 16) {
+
+                    ImGui::Text("%04zx  ", i); // Muestra la posición actual en hexadecimal (offset): 0000, 0010, 0020...
+                    ImGui::SameLine();
+
+                    // Sub-bucle A: Muestra los 16 bytes en formato hexadecimal (00 a FF)
+                    for (size_t j = 0; j < 16; j++) {
+                        if (i + j < capSize) ImGui::Text("%02x ", raw[i+j]); // Byte en hex con formato de 2 dígitos
+                        else ImGui::Text("   "); // Si el paquete se acabó a la mitad del bloque, imprime espacios vacíos para sostener la estética
+                        ImGui::SameLine();
+                    }
+
+                    ImGui::Text("  "); ImGui::SameLine(); // Espacio visual entre la columna hex y la columna ASCII
+
+                    // Sub-bucle B: Muestra los mismos bytes como caracteres ASCII
+                    for (size_t j = 0; j < 16 && (i + j) < capSize; j++) {
+                        char c = raw[i+j]; // Copia el byte crudo
+                        if (c >= 32 && c <= 126) ImGui::Text("%c", c);  // Imprime únicamente si es una letra humana válida
+                        else ImGui::Text(".");                          // Si es un carácter de control o especial, muestra un punto
+                        ImGui::SameLine(0, 0);                          // Fuerza espaciado nulo entre letras
+                    }
+                    ImGui::NewLine(); // Termina la línea actual y pasa a la siguiente
+                }
+            }
+            ImGui::EndChild(); // Fin de columna hexadecimal
+            ImGui::EndTable(); // Fin tabla
         }
+        ImGui::PopStyleColor();
     }
 
     // ============================================================================
@@ -990,10 +989,19 @@ namespace UIManager {
             float tableHeight = 0.0f;
             if (selectedPacketIndex >= 0) tableHeight = ImGui::GetContentRegionAvail().y * 0.5f;
 
+            //Para poder ver los detalles del paquete seleccionado mediante su ID
+            const PacketData* paqueteSeleccionadoPtr = nullptr;
+            if (selectedPacketIndex != -1) {
+                for (const auto& pkt : paquetesFiltrados) {
+                    if (pkt.id == selectedPacketIndex) {
+                        paqueteSeleccionadoPtr = &pkt;
+                        break;
+                    }
+                }
+            }
             //Para dibujar siempre sera la copia
-
             RenderPacketTable(paquetesFiltrados, tableHeight);    // Dibuja la tabla de paquetes
-            RenderPacketDetails(paquetesFiltrados);               // Dibuja el panel de detalles (si hay algo seleccionado)
+            RenderPacketDetails(paqueteSeleccionadoPtr);               // Dibuja el panel de detalles (si se le manda paquete)
 
             ImGui::PopStyleColor(); // Restaura el color de fondo original
         }

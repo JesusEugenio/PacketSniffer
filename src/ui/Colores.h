@@ -32,11 +32,9 @@ namespace Colores {
     inline const ImU32 TEXTINPUT = NEGRO;
     inline const ImU32 TOOLBAR = AZULPASTEL;
     inline const ImU32 BOTONESGENERAL = ROSAVIEJO;
-    inline const ImU32 BOTONESDELETE = CREMA;
 	inline const ImU32 VENTANA = CREMA;
 	inline const ImU32 BOTONESGENERALPRESS = MORADOVIEJO;
 	inline const ImU32 BOTONESGENERALHOVER = ROSAVIEJOOSCURO;
-
 
 }
 #endif //COLORES_H
