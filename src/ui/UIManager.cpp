@@ -843,26 +843,38 @@ namespace UIManager {
                 // Recorre el paquete de 16 bytes en 16 bytes (cada línea muestra 16 bytes)
                 for (size_t i = 0; i < capSize; i += 16) {
 
-                    ImGui::Text("%04zx  ", i); // Muestra la posición actual en hexadecimal (offset): 0000, 0010, 0020...
-                    ImGui::SameLine();
+                    // Muestra la posición actual en hexadecimal (offset): 0000, 0010, 0020...
+                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO), "%04zx", i);
+                    std::string hexStr = "";
+                    std::string asciiStr = "";
 
-                    // Sub-bucle A: Muestra los 16 bytes en formato hexadecimal (00 a FF)
+                    // Ensamblamos la fila entera en dos cadenas de texto antes de dibujarla
                     for (size_t j = 0; j < 16; j++) {
-                        if (i + j < capSize) ImGui::Text("%02x ", raw[i+j]); // Byte en hex con formato de 2 dígitos
-                        else ImGui::Text("   "); // Si el paquete se acabó a la mitad del bloque, imprime espacios vacíos para sostener la estética
-                        ImGui::SameLine();
+                        if (i + j < capSize) {
+                            char hexByte[4];
+                            snprintf(hexByte, sizeof(hexByte), "%02x ", raw[i+j]); // Byte en hex con formato de 2 dígitos
+                            hexStr += hexByte;
+
+                            char c = raw[i+j]; // Copia el byte crudo
+                            if (c >= 32 && c <= 126) asciiStr += c; // Imprime únicamente si es una letra humana válida
+                            else asciiStr += "."; // Si es un carácter de control o especial, muestra un punto
+                        } else {
+                            // Relleno invisible para alinear el ASCII si la línea esta incompleta
+                            hexStr += "   "; 
+                        }
+                        if (j == 7) {
+                            hexStr += " "; 
+                            asciiStr += " ";
+                        }
                     }
 
-                    ImGui::Text("  "); ImGui::SameLine(); // Espacio visual entre la columna hex y la columna ASCII
+                    // DATOS HEXADECIMALES
+                    ImGui::SameLine(48.0f); 
+                    ImGui::Text("%s", hexStr.c_str());
 
-                    // Sub-bucle B: Muestra los mismos bytes como caracteres ASCII
-                    for (size_t j = 0; j < 16 && (i + j) < capSize; j++) {
-                        char c = raw[i+j]; // Copia el byte crudo
-                        if (c >= 32 && c <= 126) ImGui::Text("%c", c);  // Imprime únicamente si es una letra humana válida
-                        else ImGui::Text(".");                          // Si es un carácter de control o especial, muestra un punto
-                        ImGui::SameLine(0, 0);                          // Fuerza espaciado nulo entre letras
-                    }
-                    ImGui::NewLine(); // Termina la línea actual y pasa a la siguiente
+                    // TEXTO ASCII
+                    ImGui::SameLine(360.0f); 
+                    ImGui::Text("%s", asciiStr.c_str());
                 }
             }
             ImGui::EndChild(); // Fin de columna hexadecimal
