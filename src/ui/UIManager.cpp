@@ -707,7 +707,7 @@ namespace UIManager {
         ImGui::InputTextWithHint("Dirección IP", "Ej: 192.168.1.1", inputIP, IM_ARRAYSIZE(inputIP));
         if (ImGui::IsItemActivated() && editTag) {
             editTag = false;
-            inputColor = ImVec4(0.937f, 0.792f, 0.898f, 1.0f);
+            inputColor= ImGui::ColorConvertU32ToFloat4(Colores::DEFAULTETIQUETA);
         }
 
         ImGui::InputTextWithHint("Nombre Etiqueta", "Ej: Servidor", inputName, IM_ARRAYSIZE(inputName));
