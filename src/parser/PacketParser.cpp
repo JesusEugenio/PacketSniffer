@@ -7,7 +7,8 @@
 
 #include "PacketParser.h" 
 #include <ws2tcpip.h>       // Contiene herramientas de Windows para convertir direcciones IP
-#include <unordered_map>    
+#include <unordered_map>
+#include <mutex>
 
 namespace PacketParser {
 
@@ -48,8 +49,15 @@ namespace PacketParser {
 
     // Función principal que recibe la memoria cruda del paquete y la convierte a nuestra estructura limpia
     PacketData ParseRawPacket(const struct pcap_pkthdr* packetHeader, const u_char* rawBytes, int linkHeaderLength, const struct timeval& firstPacketTime) {
+        //Para asignar el "ID" a cada paquete
+        static std::mutex id_mutex;
+        static int global_packet_id = 1;
+
         PacketData data;
-        
+        {
+            std::lock_guard<std::mutex> lock(id_mutex);
+            data.id = global_packet_id++;
+        }
         data.length = packetHeader->len; // Copiamos el tamaño total que tuvo el paquete al viajar por el cable
         data.rawBytes.assign(rawBytes, rawBytes + packetHeader->caplen); // Guardamos un clon de los bytes originales para el visor hexadecimal (en UIManager)
 

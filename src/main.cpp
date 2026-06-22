@@ -48,7 +48,7 @@ int main() {
     // -- Bonita pantalla de carga (por que no?) --
     bool isShowingSplashScreen = true;   // Inicia en la pantalla de carga
     float splashTimer = 0.0f;
-    const float splashDuration = 2.5f;   // 3 segundos de duración
+    const float splashDuration = 2.5f;   // 2.5 segundos de duración
 
     // -- Main Loop --
     // Se repite decenas de veces por segundo mientras la ventana esté abierta
@@ -65,6 +65,8 @@ int main() {
         ImGui::NewFrame();
 
         // Renderizamos la Interfaz Grafica
+
+        //Si se debe mostrar la pantalla de carga
         if (isShowingSplashScreen) {
             //avanza el temporizador con el tiempo real entre fotogramas
             splashTimer += ImGui::GetIO().DeltaTime;

@@ -80,6 +80,7 @@ struct igmp_header {
 
 struct PacketData {
     // Datos para la tabla principal
+    int id;
     std::string time;           // Momento exacto en que se capturó el paquete
     std::string source;         // Dirección IP origen en formato de texto legible
     std::string destination;    // Dirección IP destino en formato de texto legible
