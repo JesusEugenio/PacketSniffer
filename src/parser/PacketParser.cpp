@@ -11,6 +11,9 @@
 #include <mutex>
 
 namespace PacketParser {
+    //Para asignar el "ID" a cada paquete
+    static std::mutex id_mutex;
+    static int global_packet_id = 1;
 
     // Diccionario de los puertos TCP reconocidos por el programa
     std::unordered_map<int, std::string> known_tcp_ports = {
@@ -47,12 +50,13 @@ namespace PacketParser {
         return std::string(buffer); // Devuelve la cadena de texto construida
     }
 
+    void ResetPacketID() {
+        std::lock_guard<std::mutex> lock(id_mutex);
+        global_packet_id = 1;
+    }
+
     // Función principal que recibe la memoria cruda del paquete y la convierte a nuestra estructura limpia
     PacketData ParseRawPacket(const struct pcap_pkthdr* packetHeader, const u_char* rawBytes, int linkHeaderLength, const struct timeval& firstPacketTime) {
-        //Para asignar el "ID" a cada paquete
-        static std::mutex id_mutex;
-        static int global_packet_id = 1;
-
         PacketData data;
         {
             std::lock_guard<std::mutex> lock(id_mutex);

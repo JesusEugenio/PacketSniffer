@@ -98,6 +98,7 @@ struct PacketData {
 /* Funcion llamada ParseRawPacket que va a analizar todo lo que traen los paquetes y los pone en una 
 estructura PacketData, esta funcion esta envuelta con el apellido PacketParser */
 namespace PacketParser {
+    void ResetPacketID();
     PacketData ParseRawPacket(const struct pcap_pkthdr* packetHeader, const u_char* rawBytes, int linkHeaderLength, 
         const struct timeval& firstPacketTime);
 

@@ -49,6 +49,9 @@ namespace UIManager {
     static bool viewWindowTag = false;
     static bool editTag=false;
 
+    //para el reinicio de la captura
+    static std::string currentInterfaceInternalName = "";
+
 
     // Funcion para traducir los nombres de los Protocolos
     std::string GetFullProtocolName(const std::string& shortName) {
@@ -322,6 +325,7 @@ namespace UIManager {
                 if (ImGui::Selectable(iface.description.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) { 
                     if (ImGui::IsMouseDoubleClicked(0)) { // Si el usuario hace doble clic izquierdo...
                         currentInterfaceName = iface.description;   // Guarda el nombre de la tarjeta elegida
+                        currentInterfaceInternalName = iface.name;
                         isShowingCaptureScreen = true;              // Cambia a la pantalla de captura
                         SnifferCore::StartCapture(iface.name);      // Ordena al motor que empiece a capturar paquetes
                     }
@@ -375,13 +379,25 @@ namespace UIManager {
                     }
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Regresar a Interfaces")) {
-                    if (SnifferCore::IsCapturing()) {
-                        tipoFiltroActivo=0;
-                        SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
-                        isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
+                if (ImGui::MenuItem("Reiniciar Captura")) {
+                    if (!currentInterfaceInternalName.empty()) {
+                        if (SnifferCore::IsCapturing()) { //Paramos si es que esta capturando
+                            SnifferCore::StopCapture();
+                        }
+                        //Iniciar nueva captura en la misma tarjeta
+                        SnifferCore::StartCapture(currentInterfaceInternalName);
+                        tipoFiltroActivo = 0;
                         selectedPacketIndex = -1;
                     }
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Regresar a Interfaces")) {
+                    if (SnifferCore::IsCapturing()) {
+                        SnifferCore::StopCapture();         // Para la captura por seguridad (si es que habia algo activo)
+                    }
+                    isShowingCaptureScreen = false;     // Vuelve al menú de selección de interfaz
+                    selectedPacketIndex = -1;
+                    tipoFiltroActivo=0;
                 }
                 ImGui::EndMenu();
             }

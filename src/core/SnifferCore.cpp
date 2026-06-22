@@ -189,6 +189,7 @@ namespace SnifferCore {
         if (workerThread.joinable()) { 
             workerThread.join(); 
         }
+        PacketParser::ResetPacketID();// reiniciamos el Id de los paquetes
 
         isCapturingFlag = true;     // Avisa a la interfaz gráfica que la captura comenzó
         isFirstPacket = true;       // Reinicia el cronómetro
