@@ -63,6 +63,7 @@ namespace UIManager {
     static bool etiquetaSearch=false;
     static bool etiquetaSearchSrc=false;
     static bool etiquetaSearchDest=false;
+    static bool etiquetaSearchAnd=false;
     //Filtro/búsqueda
     static char filtroID[16] = "";
     static bool buscar=false;
@@ -128,6 +129,7 @@ namespace UIManager {
                 "Filtros disponibles en la barra de herramientas.",
                 "Algunos filtros permiten buscar coincidencias exactas o parciales; esto se activa o desactiva mediante su respectiva casilla de verificación.",
                 "Los filtros de IP pueden buscar coincidencias según la dirección IP o la etiqueta; esto se activa o desactiva con su respectiva casilla de verificación.",
+                "En el filtro combinado esta la opción de realizar filtrado con AND (marcar casilla de modo estricto) o con OR (casilla modo estricto desmarcada)"
                 "Los filtros pueden eliminarse mediante la barra de herramientas o el botón ubicado a un costado.",
                 "El apartado vista nos proporciona la opción para activar o desactivar la visualización de puertos en la tabla de paquetes.",
                 "El apartado de búsqueda permite localizar un paquete específico mediante su ID.",
@@ -141,7 +143,7 @@ namespace UIManager {
                 "Al exportar a .xlsx, se abrirá el explorador de archivos para guardar el archivo (se guardarán los datos que se muestren en la tabla)."
         };
 
-        for (int i = 1; i <= 24; i++) {
+        for (int i = 1; i <= 25; i++) {
             std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";
 
             TextureInfo info = LoadTextureFromFile(path.c_str());
@@ -426,9 +428,9 @@ namespace UIManager {
         ImGui::CreateContext();     // Reserva la memoria que ImGui necesita para funcionar
         
         // Cargamos la fuente del programa (Regular, Medium & Bold)
-        ImFont* font = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/segoeui.ttf", 18.0f); 
-        fontMedium = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/seguisb.ttf", 18.0f);
-        fontBold = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/segoeuib.ttf", 18.0f);
+        ImFont* font = ImGui::GetIO().Fonts->AddFontFromFileTTF("assets/fonts/segoeui.ttf", 18.0f); 
+        fontMedium = ImGui::GetIO().Fonts->AddFontFromFileTTF("assets/fonts/seguisb.ttf", 18.0f);
+        fontBold = ImGui::GetIO().Fonts->AddFontFromFileTTF("assets/fonts/segoeuib.ttf", 18.0f);
         if (font == nullptr) { ImGui::GetIO().FontGlobalScale = 1.5f; } // Usa la fuente predeterminada
         
         ImGui_ImplGlfw_InitForOpenGL(window, true);  // Conecta los eventos del mouse/teclado de GLFW hacia ImGui
@@ -1251,14 +1253,17 @@ namespace UIManager {
                     //El botón es más grande en la posición adecuada
                     ImGui::SetCursorPosY(posYTecho);
 
+
                     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
                     ImGui::SetWindowFontScale(2.0f); // Texto grande
 
-                    if (ImGui::Button("X##gigante", ImVec2(45.0f, altoDinamicoBoton))) {
+                    if (ImGui::Button("X##gigante", ImVec2(45.0f, altoDinamicoBoton-20.0f))) {
                         pulsarBoton = true;
                     }
-
+                    ImGui::SameLine();
                     ImGui::SetWindowFontScale(1.0f);
+                    ImGui::SetCursorPosY(posYTecho);
+                    ImGui::Checkbox("Modo Estricto##search", &etiquetaSearchAnd);
                     ImGui::PopStyleVar();
                 }
                 else {
@@ -1306,7 +1311,8 @@ namespace UIManager {
                 ipExactaGlobal, 
                 etiquetaSearch, 
                 etiquetaSearchSrc, 
-                etiquetaSearchDest
+                etiquetaSearchDest,
+                etiquetaSearchAnd
             );
 
             //Si se desea buscar

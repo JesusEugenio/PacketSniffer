@@ -46,7 +46,7 @@ namespace SnifferCore {
     bool ExportToXLSX(const std::string& filename, const std::vector<PacketData>& packets); // Exporta a XLSX
     std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,const char* textoFiltro,
         const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, const char* filtroPuertoOrig,
-        const char* filtroPuertoDest,bool ipExactaGlobal=false, bool etiquetaIP=false, bool etiquetaOrig=false, bool etiquetaDest=false);
+        const char* filtroPuertoDest,bool ipExactaGlobal=false, bool etiquetaIP=false, bool etiquetaOrig=false, bool etiquetaDest=false, bool modoEstricto=false);
     void LoadTags();        //Cargar etiquetas, osea traerlas del archivo binario
     void SaveTags();        //Guardar etiquetas, actualizar el binario
     void AddTag(const std::string& ip, const std::string& name, uint32_t colorHex);     //Agregar etiqueta
