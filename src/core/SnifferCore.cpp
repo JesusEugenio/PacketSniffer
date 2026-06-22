@@ -261,7 +261,7 @@ namespace SnifferCore {
     //Devuelve un nuevo vector con las coincidencias encontradas.
     std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,const char* textoFiltro,
         const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, const char* filtroPuertoOrig,
-        const char* filtroPuertoDest,bool ipExactaGlobal, bool etiquetaIP, bool etiquetaOrig, bool etiquetaDest){
+        const char* filtroPuertoDest,bool ipExactaGlobal, bool etiquetaIP, bool etiquetaOrig, bool etiquetaDest, bool modoEstricto){
         std::vector<PacketData> filtrados;
         filtrados.reserve(originales.size());
 
@@ -317,7 +317,13 @@ namespace SnifferCore {
                     bool convPortDest = EsPuertoValido(filtroPuertoDest, pkt.dstPort);
 
                     // Solo paquetes con todas las coincidencias se muestran
-                    pasaFiltro = (convIP && convOrig && convDest && convProt && convPortOrig && convPortDest);
+                    if (modoEstricto) {
+                        // Modo AND: Todos deben cumplirse
+                        pasaFiltro = convIP && convOrig && convDest && convProt && convPortOrig && convPortDest;
+                    } else {
+                        // Modo OR: Al menos uno debe cumplirse
+                        pasaFiltro = convIP || convOrig || convDest || convProt || convPortOrig || convPortDest;
+                    }
                     break;
                 }
                 case 6:{ // Puerto Origen
