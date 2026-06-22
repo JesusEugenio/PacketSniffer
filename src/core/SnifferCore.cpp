@@ -384,10 +384,9 @@ namespace SnifferCore {
             return false; // Error al abrir el archivo
         }
 
-        file << "No.,Time,Source,Destination,Protocol,Length,Info,MAC Source,MAC Destination\n";
-        int count = 1;
+        file << "ID,Time,Source,Destination,Protocol,Length,Info,MAC Source,MAC Destination\n";
         for (const auto& pkt : packets) {
-            file << count++ << ","
+            file << pkt.id << ","
                  << pkt.time << ","
                  << pkt.source << ","
                  << pkt.destination << ","
