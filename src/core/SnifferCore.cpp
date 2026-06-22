@@ -259,9 +259,9 @@ namespace SnifferCore {
     // -- FiltrarPaquetes --
     //Filtra el historial original basándose en el tipo de filtro activo y los buffers.
     //Devuelve un nuevo vector con las coincidencias encontradas.
-    std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,
-        const char* textoFiltro,const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,
-        const char* filtroProtocolo, bool exactaGlobal,bool etiquetaIP, bool etiquetaOrig, bool etiquetaDest){
+    std::vector<PacketData> FiltrarPaquetes(const std::vector<PacketData>& originales,int tipoFiltro,const char* textoFiltro,
+        const char* filtroIP,const char* filtroOrigen,const char* filtroDestino,const char* filtroProtocolo, const char* filtroPuertoOrig,
+        const char* filtroPuertoDest,bool ipExactaGlobal, bool etiquetaIP, bool etiquetaOrig, bool etiquetaDest){
         std::vector<PacketData> filtrados;
         filtrados.reserve(originales.size());
 
@@ -272,8 +272,8 @@ namespace SnifferCore {
                 case 1: { //IP (Cualquiera: Origen o Destino), el checkbox nos indica si quiere la exacta o solo que la contenga(esto afecta a la terminación de la IP)
                     std::string bIP(textoFiltro);
                     //Si el filtro está vacío, pasa; si no, verifica si coincide por IP o por Etiqueta
-                    pasaFiltro = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, exactaGlobal) ||
-                                 CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, exactaGlobal);
+                    pasaFiltro = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, ipExactaGlobal) ||
+                                 CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, ipExactaGlobal);
                     break;
                 }
                 case 2: { //IP Origen siempre exacta
@@ -291,24 +291,42 @@ namespace SnifferCore {
                     pasaFiltro = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
                     break;
                 }
-                case 5: {
-                    //Combinacion
+                case 5: { // Combinacion
                     std::string bIP(filtroIP), bOrig(filtroOrigen), bDest(filtroDestino), bProt(filtroProtocolo);
 
-                    //Si no manda nada entonces esa digamos que ya es verdadero para no evaluarla
-                    //Si tiene texto, entonces busca la coincidencia con .find (o de forma exacta segun el checkbox)
-                    //IP global, parcial o exacta según el checkbox
-                    bool convIP   = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, exactaGlobal) ||
-                                CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, exactaGlobal);
+                    bool convIP   = CoincideIpOEtiqueta(pkt.source, bIP, etiquetaIP, ipExactaGlobal) ||
+                                    CoincideIpOEtiqueta(pkt.destination, bIP, etiquetaIP, ipExactaGlobal);
 
-                    //origen y destino exactas por default
                     bool convOrig = CoincideIpOEtiqueta(pkt.source, bOrig, etiquetaOrig, true);
                     bool convDest = CoincideIpOEtiqueta(pkt.destination, bDest, etiquetaDest, true);
-
-                    //protocolo siempre busqueda parcial
                     bool convProt = bProt.empty() || pkt.protocol.find(bProt) != std::string::npos;
-                    //Solo paquetes con todas las coincidencias se muestran
-                    pasaFiltro = (convIP && convOrig && convDest && convProt);
+
+                    // Logica de Puertos Origen en Combinado
+                    bool convPortOrig = true;
+                    if (std::string(filtroPuertoOrig).length() > 0) {
+                        convPortOrig = (pkt.srcPort != -1 && pkt.srcPort == std::stoi(filtroPuertoOrig));
+                    }
+
+                    // Logica de Puertos Destino en Combinado
+                    bool convPortDest = true;
+                    if (std::string(filtroPuertoDest).length() > 0) {
+                        convPortDest = (pkt.dstPort != -1 && pkt.dstPort == std::stoi(filtroPuertoDest));
+                    }
+
+                    // Solo paquetes con todas las coincidencias se muestran
+                    pasaFiltro = (convIP && convOrig && convDest && convProt && convPortOrig && convPortDest);
+                    break;
+                }
+                case 6: { // Puerto Origen
+                    if (pkt.srcPort != -1 && std::string(textoFiltro).length() > 0) {
+                        pasaFiltro = (pkt.srcPort == std::stoi(textoFiltro));
+                    }
+                    break;
+                }
+                case 7: { // Puerto Destino
+                    if (pkt.dstPort != -1 && std::string(textoFiltro).length() > 0) {
+                        pasaFiltro = (pkt.dstPort == std::stoi(textoFiltro));
+                    }
                     break;
                 }
                 default:

@@ -87,6 +87,8 @@ struct PacketData {
     std::string protocol;       // Nombre del protocolo detectado (HTTP, TLS, TCP, ICMP, etc.)
     int length;                 // Tamaño total del paquete en bytes
     std::string info;           // Resumen de la información (puertos, banderas, longitud del payload)
+    int srcPort = -1;           // Puerto de origen
+    int dstPort = -1;           // Puerto de destino
     
     // Datos para el panel de Inspección Profunda 
     std::string macSource;                  // Dirección MAC origen en formato de texto legible
