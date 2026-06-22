@@ -26,6 +26,7 @@ namespace Colores {
 	inline const ImU32 MORADOVIEJO= 0xFFC7B3C0;
 	inline const ImU32 AZULMARINOOSCURO = 0xFF634F3A;
 	inline const ImU32 ROSAVIEJOOSCURO= 0xFF6D5790;
+	inline const ImU32 ROSATENUE= 0xFFE5CAEF;
 
 	//colores de atributos exactos
 	inline const ImU32 INPUT = AZULPASTEL;
@@ -35,6 +36,7 @@ namespace Colores {
 	inline const ImU32 VENTANA = CREMA;
 	inline const ImU32 BOTONESGENERALPRESS = MORADOVIEJO;
 	inline const ImU32 BOTONESGENERALHOVER = ROSAVIEJOOSCURO;
+	inline const ImU32 DEFAULTETIQUETA = ROSAVIEJOOSCURO;
 
 }
 #endif //COLORES_H
