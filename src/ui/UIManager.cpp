@@ -7,33 +7,34 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <winsock2.h>
 #include <windows.h>
-#include <commdlg.h> // Para el diálogo de guardar archivos
+#include <commdlg.h>                    // Para el diálogo de guardar archivos
 #include "stb_image.h"
-#include <GL/gl.h> // O tus headers de OpenGL/GLFW (ej. <GLFW/glfw3.h>)
+#include <GL/gl.h>                      // Headers de OpenGL/GLFW (<GLFW/glfw3.h>)
 #include "UIManager.h"
 #include "imgui.h"                      // Librería para crear la interfaz gráfica (ventanas, botones, etc)
 #include "imgui_impl_glfw.h"            // Conecta el mouse y teclado con la interfaz gráfica
 #include "imgui_impl_opengl3.h"         // Conecta la interfaz gráfica con la tarjeta de video
 #include "../core/SnifferCore.h"        // Acceso al motor que captura paquetes de red
 #include "../parser/PacketParser.h"     // Herramientas para leer y analizar paquetes de red
-#include "Colores.h"                    //Gama de colores
+#include "Colores.h"                    // Gama de colores
 #include <string>
 
 std::vector<GLuint> splashFrames;
 const int TOTAL_FRAMES = 2;
 
-//Para la opción de ayuda
+// Para la opción de ayuda
 struct TextureInfo {
     GLuint id;
     int width;
     int height;
 };
+
 struct Slide {
     TextureInfo tex; // Aquí guardas el ID, width y height
     std::string descripcion;
 };
 
-std::vector<Slide> ayudaSlides; //Sera un carrusel de imagenes
+std::vector<Slide> ayudaSlides; // Sera un carrusel de imagenes
 int slideActual = 0;
 
 namespace UIManager {
@@ -44,19 +45,19 @@ namespace UIManager {
 
     static bool requestExportCSV = false;
     static bool requestExportXLSX = false;
-    static bool mostrarPuertos = false; // Controla si se dibujan las columnas de puertos
+    static bool mostrarPuertos = false;     // Controla si se dibujan las columnas de puertos
 
     // Fuente tipografica
     ImFont* fontBold = nullptr;
     ImFont* fontMedium = nullptr;
 
-    //Filtros
-    static int tipoFiltroActivo = 0;        //tipo de filtro activo
+    // Filtros
+    static int tipoFiltroActivo = 0;        // Tipo de filtro activo
     static char filtroIP[64] = "";
     static char filtroIPOrigen[64] = "";
     static char filtroIPDestino[64] = "";
     static char filtroProtocolo[64] = "";
-    static char textoFiltro[64] = "";       //buffer para el filtro
+    static char textoFiltro[64] = "";       // Buffer para el filtro
     static char filtroPuertoOrigen[16] = "";
     static char filtroPuertoDestino[16] = "";
     static bool ipExactaGlobal=false;
@@ -64,18 +65,20 @@ namespace UIManager {
     static bool etiquetaSearchSrc=false;
     static bool etiquetaSearchDest=false;
     static bool etiquetaSearchAnd=false;
-    //Filtro/búsqueda
+
+    // Filtro / Busqueda
     static char filtroID[16] = "";
     static bool buscar=false;
     static bool requestScrollToSelection = false;
-    //etiquetas
+
+    // Etiquetas
     static bool viewWindowTag = false;
     static bool editTag=false;
 
-    //para el reinicio de la captura
+    // Para el reinicio de la captura
     static std::string currentInterfaceInternalName = "";
 
-    //Para ayuda
+    // Para ayuda
     static bool isAyudaActive = false;
 
 
@@ -84,15 +87,14 @@ namespace UIManager {
         if (shortName == "TLS/SSL" || shortName == "HTTPS") return "Transport Layer Security";
         if (shortName == "HTTP") return "Hypertext Transfer Protocol"; 
         if (shortName == "DNS") return "Domain Name System";
-        if (shortName == "QUIC") return "QUIC (Quick UDP Internet Connections)";
         if (shortName == "SSH/SFTP") return "Secure Shell Protocol";
         if (shortName == "FTP (Data)" || shortName == "FTP (Control)") return "File Transfer Protocol";
         if (shortName == "DHCP (Server)" || shortName == "DHCP (Client)") return "Dynamic Host Configuration Protocol";
         if (shortName == "BGP") return "Border Gateway Protocol";
         return shortName + " Application Data"; // Etiqueta genérica si el protocolo no es reconocido por el programa
     }
-    //Ayuda
-
+    
+    // Ayuda
     TextureInfo LoadTextureFromFile(const char* filename) {
         int w, h, channels;
         // Carga la imagen
@@ -714,7 +716,7 @@ namespace UIManager {
 
         ImGui::InputTextWithHint("Nombre Etiqueta", "Ej: Servidor", inputName, IM_ARRAYSIZE(inputName));
 
-    // Variable estática para recordar el color antes de abrir la paleta
+        // Variable estática para recordar el color antes de abrir la paleta
         static ImVec4 backupColor;
 
         ImGui::Text("Color Visual");
@@ -723,10 +725,8 @@ namespace UIManager {
             ImGui::OpenPopup("Selector de Color"); 
         }
 
-        // --- CORTINA CAFÉ MORADOSA OSCURECIDA DIRECTA ---
-        // 0xCC494549 es tu CAFEMORADOSO con luz reducida y 80% de opacidad
-        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImGui::ColorConvertU32ToFloat4(0xCC494549));
-        
+        // Color de fondo durante seleccion de color
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImGui::ColorConvertU32ToFloat4(0xCC494549));  
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(0xFF252525));
 
         if (ImGui::BeginPopupModal("Selector de Color", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -734,16 +734,14 @@ namespace UIManager {
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::BLANCO));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(0xFF151515));
 
-            // 1. Dibujamos SOLO el selector de colores
+            // Dibujar el selector de colores
             ImGui::BeginGroup();
             ImGui::ColorPicker4("##picker", (float*)&inputColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
             ImGui::EndGroup();
 
             ImGui::SameLine(); 
 
-            // 2. NUESTRA PROPIA BARRA LATERAL EN ESPAÑOL
-            ImGui::BeginGroup();
-            
+            ImGui::BeginGroup();            
             ImGui::Text("Nuevo");
             ImGui::ColorButton("##nuevo", inputColor, ImGuiColorEditFlags_NoAlpha, ImVec2(65, 65));
             

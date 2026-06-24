@@ -11,7 +11,7 @@
 #include <mutex>
 
 namespace PacketParser {
-    //Para asignar el "ID" a cada paquete
+    // Para asignar el "ID" a cada paquete
     static std::mutex id_mutex;
     static int global_packet_id = 1;
 
@@ -23,10 +23,10 @@ namespace PacketParser {
         {587, "SMTP (Secure)"}, {636, "LDAPS"}, {993, "IMAPS"}
     };
 
-    // Diccionario que vincula los puertos UDP más comunes con el nombre de su protocolo
+    // Diccionario que vincula los puertos UDP con el nombre de su protocolo
     std::unordered_map<int, std::string> known_udp_ports = {
         {22, "SSH/SFTP"}, {53, "DNS"}, {67, "DHCP (Server)"}, {68, "DHCP (Client)"}, 
-        {69, "TFTP"}, {123, "NTP"}, {161, "SNMP"}, {389, "LDAP"}, {443, "QUIC"}, 
+        {69, "TFTP"}, {123, "NTP"}, {161, "SNMP"}, {389, "LDAP"}, 
         {514, "Syslog"}, {636, "LDAPS"}
     };
 
@@ -137,6 +137,7 @@ namespace PacketParser {
 
             if (payloadSize > 1) { // Si el paquete trae carga útil (datos reales, no solo control)
                 if (service == "HTTPS") { 
+                    data.protocol = "TLS/SSL";
                     data.info = "Application Data (" + std::to_string(payloadSize) + " bytes)"; // Mostramos la cantidad de datos
                 } 
                 else if (service != "") {
