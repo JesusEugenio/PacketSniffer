@@ -124,7 +124,7 @@ namespace UIManager {
                 "Una vez detenida la captura, el botón permite regresar a la selección de interfaces.",
                 "Tabla de paquetes capturados.",
                 "Leyenda de colores para los paquetes.",
-                "Información detallada del paquete seleccionado.",
+                "Información detallada del paquete seleccionado (para dejar de verla solo pulse el paquete nuevamente).",
                 "Opción en la barra de herramientas para detener la captura.",
                 "Opción en la barra de herramientas para reiniciar la captura.",
                 "Opción en la barra de herramientas para regresar a la selección de interfaces.",
