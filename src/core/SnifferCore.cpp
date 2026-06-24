@@ -316,13 +316,26 @@ namespace SnifferCore {
                     bool convPortOrig = EsPuertoValido(filtroPuertoOrig, pkt.srcPort);
                     bool convPortDest = EsPuertoValido(filtroPuertoDest, pkt.dstPort);
 
-                    // Solo paquetes con todas las coincidencias se muestran
-                    if (modoEstricto) {
+                    // Verificamos si el usuario dejo todas las cajas vacias
+                    bool todoVacio = (filtroIP[0] == '\0') && (filtroOrigen[0] == '\0') && 
+                                     (filtroDestino[0] == '\0') && (filtroProtocolo[0] == '\0') && 
+                                     (filtroPuertoOrig[0] == '\0') && (filtroPuertoDest[0] == '\0');
+
+                    if (todoVacio) {
+                        pasaFiltro = true; // No hay filtros aplicados, pasa todo el tráfico
+                    } 
+                    else if (modoEstricto) {
                         // Modo AND: Todos deben cumplirse
                         pasaFiltro = convIP && convOrig && convDest && convProt && convPortOrig && convPortDest;
-                    } else {
-                        // Modo OR: Al menos uno debe cumplirse
-                        pasaFiltro = convIP || convOrig || convDest || convProt || convPortOrig || convPortDest;
+                    } 
+                    else {
+                        // Modo OR: Solo evalua como true si la caja tiene texto y hubo coincidencia
+                        pasaFiltro = (filtroIP[0] != '\0' && convIP) ||
+                                     (filtroOrigen[0] != '\0' && convOrig) ||
+                                     (filtroDestino[0] != '\0' && convDest) ||
+                                     (filtroProtocolo[0] != '\0' && convProt) ||
+                                     (filtroPuertoOrig[0] != '\0' && convPortOrig) ||
+                                     (filtroPuertoDest[0] != '\0' && convPortDest);
                     }
                     break;
                 }
