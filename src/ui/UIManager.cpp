@@ -29,8 +29,8 @@ struct TextureInfo {
     int height;
 };
 
-struct Slide {
-    TextureInfo tex; // Aquí guardas el ID, width y height
+struct Slide {      //Para cada ventanita de la opción ayuda
+    TextureInfo tex;
     std::string descripcion;
 };
 
@@ -60,13 +60,13 @@ namespace UIManager {
     static char textoFiltro[64] = "";       // Buffer para el filtro
     static char filtroPuertoOrigen[16] = "";
     static char filtroPuertoDestino[16] = "";
-    static bool ipExactaGlobal=false;
+    static bool ipExactaGlobal=false;           //Para los checkbox
     static bool etiquetaSearch=false;
     static bool etiquetaSearchSrc=false;
     static bool etiquetaSearchDest=false;
     static bool etiquetaSearchAnd=false;
 
-    // Filtro / Busqueda
+    //Búsqueda
     static char filtroID[16] = "";
     static bool buscar=false;
     static bool requestScrollToSelection = false;
@@ -95,7 +95,7 @@ namespace UIManager {
     }
     
     // Ayuda
-    TextureInfo LoadTextureFromFile(const char* filename) {
+    TextureInfo LoadTextureFromFile(const char* filename) {     //Carga las imagenes como texturas en el programa
         int w, h, channels;
         // Carga la imagen
         unsigned char* data = stbi_load(filename, &w, &h, &channels, 4);
@@ -107,7 +107,7 @@ namespace UIManager {
         glGenTextures(1, &textureID);
         glBindTexture(GL_TEXTURE_2D, textureID);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Usar LINEAR para mejor calidad al escalar
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); //LINEAR mejor calidad al escalar
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -146,7 +146,7 @@ namespace UIManager {
         };
 
         for (int i = 1; i <= 25; i++) {
-            std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";
+            std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";   //Cada imagen debe llamarse ayuda + número en la secuencia
 
             TextureInfo info = LoadTextureFromFile(path.c_str());
             if (info.id != 0) {
@@ -162,7 +162,7 @@ namespace UIManager {
         float newW = maxWidth;
         float newH = maxWidth / aspectRatio;
 
-        //si la altura calculada excede el máximo permitido se ajustamos por la altura
+        //si la altura calculada excede el máximo permitido se ajusta
         if (newH > maxHeight) {
             newH = maxHeight;
             newW = maxHeight * aspectRatio;
@@ -196,8 +196,10 @@ namespace UIManager {
                 float maxH = availableSpace.y - 50.0f;
                 float maxW = availableSpace.x;
 
+                //escalamos la imagen
                 ImVec2 size = GetProportionalSize(actual.tex.width, actual.tex.height, maxW, maxH);
 
+                //mostrar imagen
                 if (size.x > 0 && size.y > 0 && actual.tex.id != 0) {
                     float windowWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
                     ImGui::SetCursorPosX((windowWidth - size.x) * 0.5f);
@@ -207,9 +209,9 @@ namespace UIManager {
                 }
                 float footerHeight = 50.0f;
                 float windowHeight = ImGui::GetWindowSize().y;
-                ImGui::SetCursorPosY(windowHeight - footerHeight);
+                ImGui::SetCursorPosY(windowHeight - footerHeight);  //ubicación para dibujar los botones (abajo)
 
-                ImGui::Separator(); // Línea divisoria justo antes de los botones
+                ImGui::Separator(); //línea que separa a los botones
                 ImGui::Spacing();
 
                 //Botones navegación
@@ -223,7 +225,7 @@ namespace UIManager {
                 ImGui::Text("%d / %d", slideActual + 1, (int)ayudaSlides.size());
 
                 ImGui::SameLine(windowWidth - 90.0f); // Pegado a la derecha
-                if (ImGui::Button("Siguiente") ) {
+                if (ImGui::Button("Siguiente") ) {      //Una vez termina las paginas lo regresa al inicio
                     if (slideActual < ayudaSlides.size() - 1) {
                         slideActual++; // Avanza normal
                     } else {
@@ -372,34 +374,34 @@ namespace UIManager {
         ImGuiStyle& style = ImGui::GetStyle();
 
         //redondeado de bordes, estética
-        style.FrameRounding = 4.0f;
-        style.WindowRounding = 6.0f;
-        style.ChildRounding = 4.0f;
+        style.FrameRounding=4.0f;
+        style.WindowRounding=6.0f;
+        style.ChildRounding=4.0f;
 
-        ImVec4 colorFondoBase = ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL);
-        ImVec4 colorTextoBase = ImGui::ColorConvertU32ToFloat4(Colores::NEGRO);
+        ImVec4 colorFondoBase=ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL);
+        ImVec4 colorTextoBase=ImGui::ColorConvertU32ToFloat4(Colores::NEGRO);
 
-        style.Colors[ImGuiCol_WindowBg]         = colorFondoBase;
-        style.Colors[ImGuiCol_Text]             = colorTextoBase;
+        style.Colors[ImGuiCol_WindowBg]=colorFondoBase;
+        style.Colors[ImGuiCol_Text]=colorTextoBase;
 
         //configuración global de botones
-        style.Colors[ImGuiCol_Button]           = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERAL);
-        style.Colors[ImGuiCol_ButtonHovered]    = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALHOVER);
-        style.Colors[ImGuiCol_ButtonActive]     = ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALPRESS);
+        style.Colors[ImGuiCol_Button]=ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERAL);
+        style.Colors[ImGuiCol_ButtonHovered]=ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALHOVER);
+        style.Colors[ImGuiCol_ButtonActive]=ImGui::ColorConvertU32ToFloat4(Colores::BOTONESGENERALPRESS);
 
         //cabeceras y elementos seleccionables por defecto
-        style.Colors[ImGuiCol_Header]           = ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO);
-        style.Colors[ImGuiCol_HeaderHovered]    = ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO);
-        style.Colors[ImGuiCol_HeaderActive]     = ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO);
+        style.Colors[ImGuiCol_Header]=ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO);
+        style.Colors[ImGuiCol_HeaderHovered]=ImGui::ColorConvertU32ToFloat4(Colores::VERDEMENTAGRISACEO);
+        style.Colors[ImGuiCol_HeaderActive]=ImGui::ColorConvertU32ToFloat4(Colores::GRISVERDIOSOCLARO);
 
         //Input
-        style.Colors[ImGuiCol_FrameBg]        = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
-        style.Colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
-        style.Colors[ImGuiCol_FrameBgActive]  = ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+        style.Colors[ImGuiCol_FrameBg]=ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+        style.Colors[ImGuiCol_FrameBgHovered]=ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
+        style.Colors[ImGuiCol_FrameBgActive]=ImGui::ColorConvertU32ToFloat4(Colores::INPUT);
 
-        style.Colors[ImGuiCol_TextSelectedBg] = ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO);
+        style.Colors[ImGuiCol_TextSelectedBg]=ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO);
 
-        style.Colors[ImGuiCol_TextDisabled]   = ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO);
+        style.Colors[ImGuiCol_TextDisabled]=ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJOOSCURO);
     }
 
     // ============================================================================
@@ -594,7 +596,7 @@ namespace UIManager {
                     etiquetaSearchSrc=false;
                     ipExactaGlobal = false;
                     tipoFiltroActivo = 1;
-                    memset(textoFiltro, 0, sizeof(textoFiltro));
+                    memset(textoFiltro, 0, sizeof(textoFiltro));        //Limpia el buffer
                 }
                 if (ImGui::MenuItem("IP Origen")) {
                     etiquetaSearchSrc=false;
@@ -646,7 +648,7 @@ namespace UIManager {
                 ImGui::MenuItem("Mostrar columnas de Puertos", NULL, &mostrarPuertos);
                 ImGui::EndMenu();
             }
-            // -------- BUSQUEDA -------------
+            // -------- BÚSQUEDA -------------
             if (ImGui::BeginMenu("Búsqueda")) {
                 if (ImGui::MenuItem("Paquete ID")) {
                     buscar=true;
@@ -694,12 +696,12 @@ namespace UIManager {
 
         static char inputIP[46] = "";
         static char inputName[32] = "";
-        static ImVec4 inputColor = ImVec4(0.937f, 0.792f, 0.898f, 1.0f);
+        static ImVec4 inputColor = ImGui::ColorConvertU32ToFloat4(Colores::ROSATENUE);
 
         ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO)); // Activa
         ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));       // Inactiva
         
-        // Creamos una ventana normal e independiente que flotará sobre el sniffer
+        //Creamos una ventana normal e independiente que flotará sobre el sniffer
         ImGui::Begin("Gestión de Etiquetas", &viewWindowTag, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
 
         //Si el usuario cliquea fuera de la ventana entonces la desactiva
@@ -725,7 +727,7 @@ namespace UIManager {
             ImGui::OpenPopup("Selector de Color"); 
         }
 
-        // Color de fondo durante seleccion de color
+        //Color de fondo durante seleccion de color
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImGui::ColorConvertU32ToFloat4(0xCC494549));  
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(0xFF252525));
 
@@ -755,7 +757,7 @@ namespace UIManager {
             
             ImGui::EndGroup();
 
-            ImGui::PopStyleColor(2); // Limpiamos el texto blanco y las cajitas oscuras
+            ImGui::PopStyleColor(2); //Limpiamos colores
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -775,12 +777,12 @@ namespace UIManager {
                 ImGui::CloseCurrentPopup(); 
             }
 
-            ImGui::PopStyleColor(); // Limpiamos el texto negro de los botones
+            ImGui::PopStyleColor(); //Limpiamos el texto negro de los botones
             ImGui::EndPopup();
         }
-        ImGui::PopStyleColor(2); // Limpiamos el fondo del popup y la cortina oscurecida
+        ImGui::PopStyleColor(2); //limpiamos el fondo del popup y la cortina oscurecida
         
-        const char* btnText = editTag ? "Actualizar" : "Guardar";
+        const char* btnText = editTag ? "Actualizar" : "Guardar";       //Para cambiar el nombre del botón segun lo que se este haciendo
 
         if (ImGui::Button(btnText, ImVec2(120, 0))) {
             ImU32 colorU32 = ImGui::ColorConvertFloat4ToU32(inputColor);
@@ -802,7 +804,7 @@ namespace UIManager {
                 ImGui::Text("%s -> %s", ip.c_str(), tag.name.c_str());
                 ImGui::SameLine(ImGui::GetWindowWidth() - 70);
 
-                if (ImGui::Button("Eliminar")) {
+                if (ImGui::Button("Eliminar")) {        //Cada etiquetas tiene su eliminar o editar
                     SnifferCore::RemoveTag(ip);
                 }
 
@@ -1187,8 +1189,6 @@ namespace UIManager {
             RenderCaptureToolbar(); // Barra de operaciones
 
 
-
-
             //Si los filtros estan activos
             if (tipoFiltroActivo > 0) {
 
@@ -1196,7 +1196,7 @@ namespace UIManager {
                 ImGui::Spacing();
 
                 float espacioTexto = ImGui::CalcTextSize("Filtro Activo: ").x + ImGui::GetStyle().ItemSpacing.x;
-                float posYTecho = ImGui::GetCursorPosY(); //Posicion para despues
+                float posYTecho = ImGui::GetCursorPosY(); //Posicion para después
 
 
                 ImGui::Text("Filtro Activo:");
@@ -1213,21 +1213,21 @@ namespace UIManager {
                 if (tipoFiltroActivo == 5) {
                     //IP GLOBAL
                     ImGui::SameLine();
-                    ImGui::BeginGroup();
-                    RenderInputFiltro("##filtro_ip", "Buscar IP (Parcial)...", filtroIP, sizeof(filtroIP));
+                    ImGui::BeginGroup();        //Para agruparlo
+                    RenderInputFiltro("##filtro_ip", "Buscar IP (Parcial)...", filtroIP, sizeof(filtroIP)); //caja de texto
                     ImGui::SameLine();
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
-                    ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);
+                    ImGui::Checkbox("Exacta##glob", &ipExactaGlobal);           //Checkbox para saber si se quiere exacta o parcial
                     ImGui::SameLine();
-                    ImGui::Checkbox("Etiqueta##search_Global", &etiquetaSearch);
+                    ImGui::Checkbox("Etiqueta##search_Global", &etiquetaSearch);  //para saber si es filtro por etiqueta o no
                     ImGui::PopStyleColor();
-                    ImGui::EndGroup();
+                    ImGui::EndGroup();          //fin del grupo
 
                     //IP ORIGEN
                     ImGui::SameLine(0.0f,25.0f);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_origen", "IP Origen Exacta...", filtroIPOrigen, sizeof(filtroIPOrigen));
-                    ImGui::SameLine(); // <--- Para ponerlo al lado de la caja de texto
+                    ImGui::SameLine(); //Para dibujar en la misma linea
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
                     ImGui::Checkbox("Etiqueta##search_origen", &etiquetaSearchSrc);
                     ImGui::PopStyleColor();
@@ -1237,14 +1237,14 @@ namespace UIManager {
                     ImGui::SetCursorPosX(ImGui::GetStyle().WindowPadding.x + espacioTexto);
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_destino", "IP Destino Exacta...", filtroIPDestino, sizeof(filtroIPDestino));
-                    ImGui::SameLine(); // <--- Para ponerlo al lado
+                    ImGui::SameLine();
                     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
                     ImGui::Checkbox("Etiqueta##search_destino", &etiquetaSearchDest);
                     ImGui::PopStyleColor();
                     ImGui::EndGroup();
 
                     //PROTOCOLO
-                    ImGui::SameLine(0.0f,97.0f);
+                    ImGui::SameLine(0.0f,97.0f);    //En la misma linea pero con separaxción de x cantidad
                     ImGui::BeginGroup();
                     RenderInputFiltro("##filtro_protocolo", "Protocolo...", filtroProtocolo, sizeof(filtroProtocolo));
                     ImGui::EndGroup();
@@ -1262,7 +1262,7 @@ namespace UIManager {
                     ImGui::EndGroup();
                 }
                 else {
-                    std::string placeholder = "Buscar ";        //placehoilder, las letras que se ven cuando no hay texto en la caja
+                    std::string placeholder = "Buscar ";        //placeholder, las letras que se ven cuando no hay texto en la caja
                     if (tipoFiltroActivo == 1) {
                         placeholder += "IP ...";
                         ImGui::SameLine();
@@ -1395,7 +1395,7 @@ namespace UIManager {
                     //buscamos el número de índice en la lista
                     for (const auto& pkt : paquetesFiltrados) {
                         if (pkt.id == idBuscado) {
-                            selectedPacketIndex = pkt.id;
+                            selectedPacketIndex = pkt.id;           //Si esta entonces se selecciona
                             requestScrollToSelection = true;
                             encontrado = true;
                             break;
@@ -1451,7 +1451,7 @@ namespace UIManager {
                     }
                 }
             }
-            //Para dibujar siempre sera la copia
+            //Para dibujar siempre sera la copia filtrada
             RenderPacketTable(paquetesFiltrados, tableHeight);    // Dibuja la tabla de paquetes
             RenderPacketDetails(paqueteSeleccionadoPtr);               // Dibuja el panel de detalles (si se le manda paquete)
 
@@ -1462,16 +1462,16 @@ namespace UIManager {
         ImGui::PopStyleColor(2);
     }
 
-    void TextCenter(const char* texto, ImU32 colorU32) {
+    void TextCenter(const char* texto, ImU32 colorU32) {    //Para alinear en la pantalla de carga
         float anchoVentana = ImGui::GetWindowSize().x;
         float anchoTexto = ImGui::CalcTextSize(texto).x;
 
-        //calculamos la posición exacta para que quede simétrico
+        //calculamos la posición exacta pa que se vea bonito
         ImGui::SetCursorPosX((anchoVentana - anchoTexto) * 0.5f);
 
         ImVec4 colorConvertido = ImGui::ColorConvertU32ToFloat4(colorU32);
 
-        ImGui::TextColored(colorConvertido, "%s", texto);
+        ImGui::TextColored(colorConvertido, "%s", texto);           //Dibuja el texto
     }
 
     void RenderSplashScreen(float currentTimer, float totalDuration) {
@@ -1481,7 +1481,7 @@ namespace UIManager {
         //Diseñito
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMAPASTEL));
 
-        ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoCollapse;
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
 
         ImGui::Begin("SplashWindow", nullptr, flags);
         float anchoVentana = ImGui::GetWindowSize().x;
@@ -1490,22 +1490,22 @@ namespace UIManager {
         ImGui::Spacing();
         //Animación
         if (!splashFrames.empty()) {
-            const float tiempoPorFrame = 0.35f;
+            const float tiempoPorFrame = 0.35f;         //un frame cada tantos segundos
             int frameIndex = static_cast<int>(currentTimer / tiempoPorFrame) % splashFrames.size();
 
             float anchoImagen = 270.0f;
             float altoImagen = 180.0f;
-            // Centrado horizontal matemático exacto
+            //Centrado horizontal
             ImGui::SetCursorPosX((anchoVentana - anchoImagen) * 0.5f);
-            ImGui::SetCursorPosY(35.0f); // Le damos un poquito más de aire arriba
+            ImGui::SetCursorPosY(35.0f);            //Posicionamos
 
-            // Renderizamos con el alto corregido
+            //Renderizamos
             ImGui::Image((ImTextureID)(uintptr_t)splashFrames[frameIndex], ImVec2(anchoImagen, altoImagen));
         }
 
         ImGui::SetCursorPosY(230.0f);
         //Titulo
-        TextCenter("=== PACKET SNIFFER ===", Colores::AZULMARINOOSCURO);
+        TextCenter("=== PACKET SNIFFER ===", Colores::AZULMARINOOSCURO);        //mostramos pero centrado
         ImGui::Spacing();
 
         //Mensajes de carga
@@ -1525,21 +1525,21 @@ namespace UIManager {
         ImGui::ProgressBar(progreso, ImVec2(anchoBarra, 16.0f), "");
         ImGui::PopStyleColor(2);
 
-        //Una info
+        //Una info al final
         ImGui::SetCursorPosY(ImGui::GetWindowSize().y - 45.0f);
         TextCenter("Packet Sniffer - 2026", Colores::ROSAVIEJOOSCURO);
         ImGui::End();
         ImGui::PopStyleColor();
     }
 
-    void LoadSplashResources() {
+    void LoadSplashResources() {        //Cargar los recursos para la pantalla de carga
         for (int i = 1; i <= TOTAL_FRAMES; i++) {
             std::string path = "assets/splash/frame" + std::to_string(i) + ".png";
 
-            TextureInfo info = LoadTextureFromFile(path.c_str());
+            TextureInfo info = LoadTextureFromFile(path.c_str());       //cargamos la imagen
 
             if (info.id != 0) {
-                // Solo guardamos el ID, ignorando las dimensiones
+                //Solo guardamos el ID
                 splashFrames.push_back(info.id);
             } else {
                 printf("Error: No se pudo cargar la imagen en la ruta: %s\n", path.c_str());
@@ -1548,13 +1548,13 @@ namespace UIManager {
     }
 
     void CleanupResources() {
-        // Liberar texturas de splash
+        //Liberar texturas de splash
         for (GLuint tex : splashFrames) {
             glDeleteTextures(1, &tex);
         }
         splashFrames.clear();
 
-        // Liberar texturas de ayuda
+        //Liberar texturas de ayuda
         for (const auto& slide : ayudaSlides) {
             glDeleteTextures(1, &slide.tex.id);
         }

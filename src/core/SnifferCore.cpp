@@ -13,7 +13,11 @@
 #include <thread> // Permite ramificar la ejecución en hilos
 #include <atomic> // Variables especializadas a prueba de choques de memoria
 #include <fstream>
+#include <filesystem>
 #include <cstring>
+
+//borrar
+#include <iostream>
 
 namespace SnifferCore {
 
@@ -370,55 +374,88 @@ namespace SnifferCore {
                     break;
             }
 
-            if (pasaFiltro) {
-                filtrados.push_back(pkt);
+            if (pasaFiltro) {       //Dentro de los casos pasa filtro toma valor verdadero o falso segun se cumplan las condiciones
+                filtrados.push_back(pkt);       //si cumple con los estandares entonces deja pasar al paquete al nuevo vector
             }
         }
 
-        return filtrados;
+        return filtrados;       //al final regresa el nuevo vector
     }
 
     void LoadTags() {
-        std::lock_guard<std::mutex> lock(tagMutex);
-        std::ifstream file(archive, std::ios::binary);  //nuestro archivo
-        if (!file) return;
+        std::lock_guard<std::mutex> lock(tagMutex);     //Para no intentar agregar y cargar las etiquetas a la vez
+        //ruta
+        std::filesystem::path exePath = std::filesystem::current_path();
+        std::filesystem::path parentPath = exePath.parent_path().parent_path(); //salir del build
+        std::filesystem::path dataDir = parentPath/"data";
+        std::filesystem::path filePath = dataDir / archive;
+        //std::cout << "El programa intentara crear la carpeta aqui: " << filePath << std::endl;
+
+        if (!std::filesystem::exists(filePath)) {       //verificación antes de intentar abrir
+            return; //no hay archivo, salir
+        }
+
+        std::ifstream file(filePath, std::ios::binary);  //nuestro archivo
+        if (!file.is_open()) return;
 
         MapIpTag.clear();   //limpiamos el mapa
         BinaryTag tag;
+
+        //Lemos el archivo registro por registro
         while (file.read(reinterpret_cast<char*>(&tag), sizeof(BinaryTag))) {
             MapIpTag[tag.ip]={tag.tagName, tag.colorHex};   //almacenamos clave ip, atributos el nombre y el color
         }
+        file.close();
     }
 
     void SaveTags() {
         std::lock_guard<std::mutex> lock(tagMutex);
-        std::ofstream file(archive, std::ios::binary | std::ios::trunc);     //truncamos para guardar nuevamente
-        if (!file) return;
+        //Directorio donde esta el ejecutable
+        std::filesystem::path exePath = std::filesystem::current_path();
+        //Salimos hasta llegar a la raiz para crear la carpeta
+        std::filesystem::path parentPath = exePath.parent_path().parent_path();
 
-        for (const auto& [ip, tag] : MapIpTag) {
-            BinaryTag record = {};          //nuevo registro
-            std::strncpy(record.ip, ip.c_str(), sizeof(record.ip) - 1);
-            std::strncpy(record.tagName, tag.name.c_str(), sizeof(record.tagName) - 1);
-            record.colorHex = tag.colorHex;
-            file.write(reinterpret_cast<const char*>(&record), sizeof(BinaryTag));
+        std::filesystem::path dataDir = parentPath/"data";            // Definimos la carpeta donde se va a guardar
+        std::filesystem::path filePath = dataDir / archive;      // ruta completa
+
+        //Creamos la carpeta si no existe
+        if (!std::filesystem::exists(dataDir)) {
+            std::filesystem::create_directories(dataDir);
         }
+
+        std::ofstream file(filePath, std::ios::binary | std::ios::trunc);     //truncamos para guardar nuevamente
+        if (!file.is_open()) return;          //si no se abrio salimos
+
+        for (const auto& [ip, tag] : MapIpTag) {                //recorremos el mapa de etiquetas
+            BinaryTag record = {};          //nuevo registro
+            //Copiamos los elementos al registro
+            std::strncpy(record.ip, ip.c_str(), sizeof(record.ip) - 1);
+            record.ip[sizeof(record.ip) - 1] = '\0';    //Aseguramos que termine con fin de línea
+
+            std::strncpy(record.tagName, tag.name.c_str(), sizeof(record.tagName) - 1);
+            record.tagName[sizeof(record.tagName) - 1] = '\0';
+
+            record.colorHex = tag.colorHex;
+            file.write(reinterpret_cast<const char*>(&record), sizeof(BinaryTag));  //Escribimos el registro
+        }
+        file.close();
     }
 
     void AddTag(const std::string& ip, const std::string& name, uint32_t colorHex) {
         if (ip.empty() || name.empty()) return;     //no guardar vacios
         {
             std::lock_guard<std::mutex> lock(tagMutex);
-            MapIpTag[ip] = { name, colorHex };
+            MapIpTag[ip] = { name, colorHex }; // se añade al mapa de etiquetas
         }
         SaveTags(); //actualizamos el binario
     }
 
-    void RemoveTag(const std::string& ip) {
+    void RemoveTag(const std::string& ip) {     //eliminamos etiqueta con la IP
         {
             std::lock_guard<std::mutex> lock(tagMutex);
-            MapIpTag.erase(ip);
+            MapIpTag.erase(ip);         // Eliminamos del map
         }
-        SaveTags();
+        SaveTags();         //Actualizamos al binario
     }
 
     bool getTag(const std::string& ip, Tag& outTag) {
