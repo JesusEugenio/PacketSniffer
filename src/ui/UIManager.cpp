@@ -131,11 +131,12 @@ namespace UIManager {
                 "Filtros disponibles en la barra de herramientas.",
                 "Algunos filtros permiten buscar coincidencias exactas o parciales; esto se activa o desactiva mediante su respectiva casilla de verificación.",
                 "Los filtros de IP pueden buscar coincidencias según la dirección IP o la etiqueta; esto se activa o desactiva con su respectiva casilla de verificación.",
-                "En el filtro combinado esta la opción de realizar filtrado con AND (marcar casilla de modo estricto) o con OR (casilla modo estricto desmarcada)"
+                "En el filtro combinado esta la opción de realizar filtrado con AND (marcar casilla de modo estricto) o con OR (casilla modo estricto desmarcada)",
                 "Los filtros pueden eliminarse mediante la barra de herramientas o el botón ubicado a un costado.",
                 "El apartado vista nos proporciona la opción para activar o desactivar la visualización de puertos en la tabla de paquetes.",
                 "El apartado de búsqueda permite localizar un paquete específico mediante su ID.",
                 "La búsqueda puede cancelarse desde la barra de herramientas o con el botón ubicado a un costado.",
+                "Al dar clic derecho se abrira un menu que permite copiar alguno de los valores visbles de la tabla",
                 "El apartado de etiquetas permite gestionarlas (se guardan automáticamente, por lo que el sniffer las recordará a menos que se eliminen manualmente).",
                 "En el apartado de etiquetas se habilita una ventana para asignar una etiqueta a una dirección IP.",
                 "Permite asignar un color mediante el selector de color.",
@@ -145,8 +146,11 @@ namespace UIManager {
                 "Al exportar a .xlsx, se abrirá el explorador de archivos para guardar el archivo (se guardarán los datos que se muestren en la tabla)."
         };
 
-        for (int i = 1; i <= 25; i++) {
-            std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";   //Cada imagen debe llamarse ayuda + número en la secuencia
+        // Calculamos cuantos textos hay en la lista
+        int totalTextos = sizeof(textos) / sizeof(textos[0]);
+
+        for (int i = 1; i <= totalTextos; i++) {
+            std::string path = "assets/ayuda/ayuda" + std::to_string(i) + ".png";   // Cada imagen debe llamarse ayuda + número en la secuencia
 
             TextureInfo info = LoadTextureFromFile(path.c_str());
             if (info.id != 0) {
@@ -722,10 +726,12 @@ namespace UIManager {
         static ImVec4 backupColor;
 
         ImGui::Text("Color Visual");
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::BLANCO));
         if (ImGui::ColorButton("##boton_color", inputColor, ImGuiColorEditFlags_NoAlpha)) {
             backupColor = inputColor; 
             ImGui::OpenPopup("Selector de Color"); 
         }
+        ImGui::PopStyleColor();
 
         //Color de fondo durante seleccion de color
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImGui::ColorConvertU32ToFloat4(0xCC494549));  
@@ -844,12 +850,12 @@ namespace UIManager {
         ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, ImGui::ColorConvertU32ToFloat4(Colores::AZULGRISACEO));
 
         // Crea una región desplazable e independiente del resto de la ventana
-        if (ImGui::BeginChild("Tabla", ImVec2(0, tableHeight), true)) {
+        if (ImGui::BeginChild("Tabla", ImVec2(0, tableHeight), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
             // Calculamos las columnas dinamicamente
             int numeroColumnas = mostrarPuertos ? 9 : 7;
 
             // Crea una tabla de 7 columnas con bordes y  filas alternadas 
-            if (ImGui::BeginTable("paquetes", numeroColumnas, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            if (ImGui::BeginTable("paquetes", numeroColumnas, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
                 
                 // Definimos el ancho fijo de cada columna en píxeles
                 ImGui::TableSetupColumn("No.", ImGuiTableColumnFlags_WidthFixed, 65.0f);
@@ -863,6 +869,7 @@ namespace UIManager {
                     ImGui::TableSetupColumn("Dst Port", ImGuiTableColumnFlags_WidthFixed, 70.0f);
                 }
                 ImGui::TableSetupColumn("Info", ImGuiTableColumnFlags_WidthStretch); // Esta columna se expande para llenar el espacio restante
+                ImGui::TableSetupScrollFreeze(0, 1); // Congela 0 columnas y 1 fila (el encabezado con estos titulos)
                 ImGui::TableHeadersRow(); // Dibujamos la configuracion anterior
 
                 //Buscamos el índice real del paquete en el vector, esto para mantenerlo enfocado si esta seleccionado uno
@@ -876,6 +883,8 @@ namespace UIManager {
                     }
                 }
 
+                static int paqueteConMenuAbierto = -1;
+
                 // ImGuiListClipper es una herramienta de optimización:
                 // En lugar de dibujar las 10,000 filas, solo dibuja las que el usuario puede ver en pantalla
                 ImGuiListClipper clipper; 
@@ -886,21 +895,27 @@ namespace UIManager {
                     for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) { // Dibujaremos solo sobre ese rango
                         const auto& pkt = packets[i];   // Obtiene el paquete correspondiente a esta fila
                         ImGui::TableNextRow();          // Avanza a la siguiente fila de la tabla
+
+                        // Averiguar si se debe pintar la fila del paquete
+                        bool isSelected = (selectedPacketIndex == pkt.id);      // Seleccionada con clic izquierdo
+                        bool isMenuOpen = (paqueteConMenuAbierto == pkt.id);    // Seleccionada con clic derecho
+                        bool renderAsSelected = (isSelected || isMenuOpen);
                         
-                        bool isSelected = (selectedPacketIndex == pkt.id); // Es esta la fila que el usuario seleccionó?
-                        
-                        if (isSelected) {
-                            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, Colores::VERDEMENTAGRISACEO); // Pinta el fondo
-                            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO)); // Pone el texto en blanco para que se lea bien
+                        // Evitar que ImGui sobreponga sus propios colores 
+                        if (renderAsSelected) {
+                            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO)); 
+                            ImGui::PushStyleColor(ImGuiCol_Header, ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO)); 
+                            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO)); 
+                            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::ColorConvertU32ToFloat4(Colores::MORADOVIEJO)); 
                         }
-                        
+
                         ImGui::TableNextColumn();
                         char label[32]; // Búfer para procesar Los ID's gráficos
                         // Genera el texto de la celda de número: el "##" es invisible, pero ImGui lo necesita para identificar el elemento internamente
                         snprintf(label, sizeof(label), "%d##%d", pkt.id, i);
                         
                         // Hace toda la fila clickeable
-                        if (ImGui::Selectable(label, isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
+                        if (ImGui::Selectable(label, renderAsSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap)) {
                             if (selectedPacketIndex == pkt.id) {
                                 //si ya estaba seleccionado, lo deseleccionamos
                                 selectedPacketIndex = -1;
@@ -911,6 +926,66 @@ namespace UIManager {
                             }
                         }
                         
+                        ImGui::PushID(pkt.id); // Protegemos el ID para no mezclar menús
+                        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                            paqueteConMenuAbierto = pkt.id; 
+                            ImGui::OpenPopup("MenuCopiar"); 
+                        }
+                        
+                        // Cambiamos el color de fondo antes de crear el MenuCopiar
+                        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGui::ColorConvertU32ToFloat4(Colores::CREMACLARO));
+
+                        if (ImGui::BeginPopup("MenuCopiar")) {
+                            
+                            // Paleta de colores
+                            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Colores::NEGRO));
+                            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::ColorConvertU32ToFloat4(Colores::ROSAVIEJO)); 
+
+                            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Colores::AZULMARINOOSCURO), "Opciones de copia");
+                            ImGui::Separator();
+                            
+                            if (ImGui::MenuItem("Copiar IP Origen")) {
+                                ImGui::SetClipboardText(pkt.source.c_str());
+                            }
+                            if (ImGui::MenuItem("Copiar IP Destino")) {
+                                ImGui::SetClipboardText(pkt.destination.c_str());
+                            }
+                            ImGui::Separator();
+
+                            if (ImGui::MenuItem("Copiar Protocolo")) {
+                                ImGui::SetClipboardText(pkt.protocol.c_str());
+                            }
+                            ImGui::Separator();
+
+                            // Copiar Puertos (Solo si están visibles en la tabla y aplican para el protocolo)
+                            if (mostrarPuertos) {
+                                if (pkt.srcPort != -1) {
+                                    if (ImGui::MenuItem("Copiar Puerto Origen")) {
+                                        ImGui::SetClipboardText(std::to_string(pkt.srcPort).c_str());
+                                    }
+                                }
+                                if (pkt.dstPort != -1) {
+                                    if (ImGui::MenuItem("Copiar Puerto Destino")) {
+                                        ImGui::SetClipboardText(std::to_string(pkt.dstPort).c_str());
+                                    }
+                                    ImGui::Separator();
+                                }
+                            }
+
+                            // Limpiamos los 2 colores internos (Texto y Hover)
+                            ImGui::PopStyleColor(2); 
+                            ImGui::EndPopup();
+                        }
+                        else {
+                            if (paqueteConMenuAbierto == pkt.id) {
+                                paqueteConMenuAbierto = -1;
+                            }
+                        }
+
+                        // Limpiamos el color de fondo del menu
+                        ImGui::PopStyleColor(); 
+                        ImGui::PopID();
+
                         // Rellenamos el resto de columnas con los datos del paquete 
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.time.c_str());  //.c_str() ayuda a ImGui a procesar el texto
 
@@ -965,20 +1040,21 @@ namespace UIManager {
                             else ImGui::Text("-");
                         }
                         ImGui::TableNextColumn(); ImGui::Text("%s", pkt.info.c_str());
-
-                        if (isSelected) ImGui::PopStyleColor(); // Quita el color blanco del texto (solo aplica a la fila seleccionada)
+                        if (renderAsSelected) ImGui::PopStyleColor(4);
                     }
                 }
-                ImGui::EndTable(); // Cierra la tabla
+
                 if (requestScrollToSelection && selectedPacketIndex != -1) {
                     // Calculamos la posición relativa del índice buscado
                     float scrollY = (float)targetIndex * ImGui::GetTextLineHeightWithSpacing();
                     ImGui::SetScrollY(scrollY - (tableHeight * 0.5f));
                     requestScrollToSelection = false;
                 }
-                else if (SnifferCore::IsCapturing() && packets.size() > 0 && selectedPacketIndex == -1) { // Auto-scroll: Si está capturando, si hay paquetes y si el usuario no ha seleccionado nada
-                    ImGui::SetScrollHereY(1.0f); // Desplaza la barra de scroll al 100% (al final)
+                else if (SnifferCore::IsCapturing() && packets.size() > 0 && selectedPacketIndex == -1) { 
+                    // Auto-scroll: Desplaza la barra de la tabla al 100% (al final)
+                    ImGui::SetScrollHereY(1.0f); 
                 }
+                ImGui::EndTable(); // Cierra la tabla
             }
         }
         ImGui::EndChild(); // Cierra la zona desplazable
